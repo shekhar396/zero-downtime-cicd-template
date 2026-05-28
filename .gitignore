@@ -1,0 +1,105 @@
+# Operating systems
+.DS_Store
+.AppleDouble
+.LSOverride
+Thumbs.db
+Thumbs.db:encryptable
+Desktop.ini
+$RECYCLE.BIN/
+ehthumbs.db
+Icon?
+
+# Editors and IDEs
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
+.idea/
+*.iml
+*.iws
+*.ipr
+*.swp
+*.swo
+*~
+
+# Environment and secrets
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.crt
+*.p12
+*.pfx
+secrets/
+credentials/
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+pip-log.txt
+
+# Node.js
+node_modules/
+dist/
+build/
+coverage/
+.nyc_output/
+.npm/
+.pnpm-store/
+.yarn/
+!.yarn/releases
+!.yarn/plugins
+!.yarn/sdks
+!.yarn/versions
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.python-version
+.venv/
+venv/
+env/
+ENV/
+.mypy_cache/
+.pytest_cache/
+.ruff_cache/
+.tox/
+.coverage
+htmlcov/
+pip-wheel-metadata/
+*.egg-info/
+
+# Docker and local runtime state
+.docker/
+docker-compose.override.yml
+compose.override.yml
+*.pid
+*.sock
+
+# Build artifacts and archives
+target/
+out/
+tmp/
+temp/
+*.tmp
+*.temp
+*.bak
+*.orig
+*.zip
+*.tar
+*.tar.gz
+*.tgz
+
+# CI and tool caches
+.cache/
+.parcel-cache/
+.next/
+.nuxt/
+.turbo/
+.vite/
+
