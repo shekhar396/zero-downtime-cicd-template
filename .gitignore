@@ -103,3 +103,5 @@ temp/
 .turbo/
 .vite/
 
+config/app.env
+
