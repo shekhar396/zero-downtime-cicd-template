@@ -9,7 +9,7 @@ services:
     deploy_path: /opt/apps/pico-photos-api
     nginx_server_name: _
     retention_count: 5
-    start_command: sudo systemctl start pico-photos-api-{color}
-    stop_command: sudo systemctl stop pico-photos-api-{color}
-    status_command: sudo systemctl is-active pico-photos-api-{color}
+    start_command: sudo -n systemctl start pico-photos-api-{color}
+    stop_command: sudo -n systemctl stop pico-photos-api-{color}
+    status_command: sudo -n systemctl is-active pico-photos-api-{color}
     env_file: /opt/apps/pico-photos-api/shared/.env
