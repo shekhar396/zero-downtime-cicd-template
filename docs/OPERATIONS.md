@@ -38,6 +38,38 @@ The inspection command prints service name, deploy path, active color, inactive 
 
 The Phase 2 state foundation does not deploy code, switch NGINX traffic, perform rollback, or call Jenkins.
 
+## Release Artifact Management
+
+Phase 4 adds local release artifact directory management.
+
+Create a release artifact record:
+
+```bash
+./scripts/create-release.sh billing-api examples/mock-artifact
+make create-release SERVICE=billing-api ARTIFACT=examples/mock-artifact
+```
+
+List retained releases:
+
+```bash
+./scripts/list-releases.sh billing-api
+make list-releases SERVICE=billing-api
+```
+
+A release ID uses this format:
+
+```text
+YYYYMMDDTHHMMSSZ-<short_git_hash>
+```
+
+If Git metadata is unavailable, the suffix is `nogit`.
+
+The `current` symlink is updated to the newly created release directory. This is artifact bookkeeping only; it does not start the service, change blue/green active color, switch traffic, reload NGINX, call Jenkins, or run rollback.
+
+Production VM configurations should use a durable application path such as `/opt/apps/<service-name>` for `deploy_path`. The repository examples use `/tmp/zero-downtime-cicd/services/<service-name>` for local validation without root privileges.
+
+Retention defaults to `5` releases per service. Operators may set `retention_count` in `config/services.yml`. Values greater than `10` warn because release artifacts can consume disk quickly. Cleanup never deletes the release pointed to by `current` or the latest successful release found in `state/history.log`.
+
 ## Pre-Deployment Checklist
 
 Before a release, confirm:

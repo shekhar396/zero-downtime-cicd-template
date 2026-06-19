@@ -9,6 +9,7 @@ services:
     health_path: /health
     deploy_path: /tmp/zero-downtime-cicd/services/billing-api
     nginx_server_name: billing.example.com
+    retention_count: 5
 
   - service_name: photo-api
     runtime: container
@@ -18,6 +19,7 @@ services:
     health_path: /health
     deploy_path: /tmp/zero-downtime-cicd/services/photo-api
     nginx_server_name: photos.example.com
+    retention_count: 5
 
   - service_name: drive-api
     runtime: container
@@ -27,3 +29,4 @@ services:
     health_path: /health
     deploy_path: /tmp/zero-downtime-cicd/services/drive-api
     nginx_server_name: drive.example.com
+    retention_count: 5

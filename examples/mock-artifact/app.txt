@@ -1,0 +1,1 @@
+mock release artifact for local validation

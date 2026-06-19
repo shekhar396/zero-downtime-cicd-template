@@ -21,8 +21,11 @@ It should help teams deploy containerized services to generic Linux VMs using Je
 - HTTP health-check gates before promotion
 - post-switch verification
 - rollback to the last known healthy release
+- release artifact directory management with metadata
 - release directory structure on target VMs
+- `current` symlink management for release artifacts
 - file-based state management with history records
+- safe release retention cleanup
 - development, staging, and production configuration guidance
 - operator documentation for deploy, rollback, troubleshoot, and recover workflows
 - clear limitations and safety notes
@@ -50,8 +53,9 @@ The v1 script inventory is:
 - `scripts/health-check.sh`
 - `scripts/generate-nginx.sh`
 - `scripts/switch-traffic.sh`
-- `scripts/rollback.sh`
+- `scripts/create-release.sh`
 - `scripts/list-releases.sh`
+- `scripts/rollback.sh`
 - `scripts/smoke-test.sh`
 - `scripts/common/config.sh`
 - `scripts/common/colors.sh`
@@ -75,6 +79,7 @@ These scripts are required for the v1 design but should be implemented only afte
 - secret-management platform implementation
 - full monitoring or tracing stack installation
 - application-specific deployment logic embedded in the core scripts
+- release artifact management that starts processes, switches traffic, or performs rollback
 
 ## Stability Criteria
 

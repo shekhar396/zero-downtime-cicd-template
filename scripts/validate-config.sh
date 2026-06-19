@@ -34,6 +34,7 @@ validate_services_file() {
       health_path = ""
       deploy_path = ""
       nginx_server_name = ""
+      retention_count = ""
     }
     function is_number(value) {
       return value ~ /^[0-9]+$/
@@ -83,6 +84,15 @@ validate_services_file() {
         printf "[validate-config] ERROR: deploy_path must be absolute for %s: %s\n", service_name, deploy_path > "/dev/stderr"
         errors++
       }
+
+      if (retention_count != "") {
+        if (retention_count !~ /^[1-9][0-9]*$/) {
+          printf "[validate-config] ERROR: retention_count must be a positive integer for %s: %s\n", service_name, retention_count > "/dev/stderr"
+          errors++
+        } else if ((retention_count + 0) > 10) {
+          printf "[validate-config] WARN: retention_count is greater than 10 for %s: %s\n", service_name, retention_count > "/dev/stderr"
+        }
+      }
     }
     BEGIN { reset_record() }
     $0 == "---" {
@@ -102,6 +112,7 @@ validate_services_file() {
       else if (key == "health_path") health_path = value
       else if (key == "deploy_path") deploy_path = value
       else if (key == "nginx_server_name") nginx_server_name = value
+      else if (key == "retention_count") retention_count = value
     }
     END {
       validate_record()
