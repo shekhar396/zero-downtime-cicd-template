@@ -1,89 +1,164 @@
 # Architecture
 
-This document describes the intended architecture for the initial template. Implementation details may evolve as the MVP is built and tested.
+This document describes the planned `v1.0.0` architecture for a Linux VM-based zero-downtime CI/CD template. It is intentionally focused on virtual machines, Jenkins, Docker, NGINX, health checks, rollback, and release state management.
 
-## High-Level Deployment Flow
+Kubernetes is future `v2.0.0` roadmap scope only and is not part of this architecture.
+
+## Design Goals
+
+- make releases repeatable instead of manual
+- keep the currently healthy version serving traffic while a candidate starts
+- promote only after health checks pass
+- make rollback faster than debugging during an incident
+- support more than one service without duplicating the whole deployment system
+- keep operational state clear enough for humans to inspect
+
+## High-Level Flow
 
 ```mermaid
 sequenceDiagram
-    participant Dev as Source Repository
-    participant Jenkins as Jenkins
-    participant Docker as Docker Host
+    participant Git as Source Repository
+    participant Jenkins as Jenkins Pipeline
+    participant VM as Linux VM
+    participant Docker as Docker Runtime
     participant NGINX as NGINX
-    participant App as Candidate App
+    participant State as Release State
 
-    Dev->>Jenkins: Commit or release trigger
-    Jenkins->>Jenkins: Validate inputs
-    Jenkins->>Docker: Build or pull tagged image
-    Jenkins->>Docker: Start inactive color
-    Jenkins->>App: Run health check
-    App-->>Jenkins: Healthy response
-    Jenkins->>NGINX: Switch upstream to candidate color
-    Jenkins->>Docker: Keep previous color for rollback window
-    Jenkins->>Jenkins: Record release state
+    Git->>Jenkins: Commit, tag, or manual release trigger
+    Jenkins->>Jenkins: Validate inputs and environment
+    Jenkins->>Docker: Build or pull immutable image tag
+    Jenkins->>VM: Deploy candidate to inactive color
+    Jenkins->>Docker: Start candidate service container
+    Jenkins->>Docker: Run service health checks
+    Jenkins->>NGINX: Switch upstream after validation
+    Jenkins->>State: Record active color, version, and result
 ```
 
-## Jenkins Role
+## Core Components
 
-Jenkins is planned as the release orchestrator. It should coordinate checkout, image build, tagging, deployment, validation, traffic switch, and rollback stages. Jenkins should expose enough logs and release metadata for operators to understand what changed and why.
+### Jenkins
 
-Jenkins should not hide production risk behind a green build. A pipeline run is only meaningful when deployment validation, traffic switching, and rollback behavior are explicit.
+Jenkins is the release orchestrator. It should coordinate checkout, build or image selection, environment validation, deployment, health checks, NGINX switching, release-state updates, and rollback actions.
 
-## Docker Role
+The pipeline must treat deployment success as more than a green build. A release is successful only when the candidate is deployed, validated, promoted, and recorded.
 
-Docker provides the packaging and runtime boundary for application releases. The template will use tagged images to keep releases identifiable and repeatable. The active and inactive colors should run as separate containers or container groups with predictable names.
+### Linux VM
 
-## NGINX Role
+The v1 target is a generic Linux VM. The template should avoid assumptions that only work on one cloud provider. Operators are expected to provide the VM, network access, Docker runtime, NGINX, deployment user permissions, and secret-management approach.
 
-NGINX is the planned traffic boundary. It will route client traffic to the currently active color and be reloaded or reconfigured during promotion. NGINX changes must be validated carefully because incorrect upstream configuration can create immediate downtime.
+### Docker
 
-## Blue/Green Deployment Concept
+Docker is the application packaging and runtime layer for v1. Images should be tagged immutably so operators can identify exactly what is running and roll back to a known release.
 
-Blue/green deployment keeps two release slots available:
+### NGINX
 
-- **Blue:** one deployment color, either active or inactive.
-- **Green:** the alternate deployment color, either active or inactive.
+NGINX is the traffic boundary. It routes user traffic to the active blue or green slot. Promotion updates the NGINX upstream target and reloads or applies the change safely.
 
-Only one color receives production traffic at a time. The inactive color is used for candidate deployment and health validation.
+### Release State
+
+Release state records what version is active, which color is live, which release was previously healthy, and whether the last deployment succeeded or rolled back. State should be simple enough to inspect during an incident.
+
+## Blue/Green Model
+
+Each service has two deployment slots:
+
+- `blue` - one runnable version of the service
+- `green` - the alternate runnable version of the service
+
+Only one slot receives production traffic. The inactive slot is used for the candidate release.
 
 ```mermaid
 flowchart TB
     U[Users] --> N[NGINX]
-    N -->|active upstream| B[Blue Container]
-    G[Green Container] -. inactive candidate .-> H[Health Check]
+    N --> A[Active Slot]
+    C[Candidate Slot] --> H[Health Check]
+    H -->|pass| S[Switch Traffic]
+    H -->|fail| K[Keep Current Active Slot]
 ```
 
-## Health Check Gate
+## Multi-Service Deployment
 
-The health check gate prevents traffic promotion when the candidate release cannot prove basic readiness. The MVP should support a configurable health endpoint and timeout policy. A failed health check should keep traffic on the current active color.
+`v1.0.0` should support multiple services without forcing every team to copy and edit separate deployment systems.
 
-## Rollback Flow
+The expected model:
 
-Rollback should prefer restoring traffic to the last known healthy color before attempting deeper debugging.
+- define services in a structured configuration
+- deploy each service to its inactive color
+- run service-specific health checks
+- support dependency-aware ordering where needed
+- switch traffic only for services that pass their gates
+- record per-service release state
+- document rollback behavior when one service succeeds and another fails
+
+The template should be honest about distributed-system limits. Multi-service rollback can be constrained by shared data, backward compatibility, and inter-service API changes.
+
+## Health Checks
+
+Health checks are promotion gates, not observability replacements. A candidate service must expose a configured HTTP endpoint that proves the process is running and ready to receive traffic.
+
+Health-check behavior should define:
+
+- endpoint path
+- expected status code
+- timeout
+- retry count
+- failure behavior
+- post-switch verification
+
+## Rollback
+
+Rollback should prioritize restoring traffic to the last known healthy version.
 
 ```mermaid
 flowchart LR
-    A[Detect Failed Candidate or Post-Switch Issue] --> B[Identify Previous Active Color]
-    B --> C[Switch NGINX Back]
-    C --> D[Validate Restored Health]
-    D --> E[Record Rollback Event]
+    A[Failure Detected] --> B[Read Release State]
+    B --> C[Identify Previous Healthy Color]
+    C --> D[Switch NGINX Back]
+    D --> E[Run Health Check]
+    E --> F[Record Rollback Event]
 ```
+
+Rollback does not automatically solve every application problem. Database changes, irreversible side effects, incompatible APIs, and external dependencies must be handled by the application and release process.
+
+## Release Directory Structure
+
+The planned v1 release layout should keep deployed assets and state predictable. A representative structure is:
+
+```text
+/opt/zero-downtime-cicd/
+├── releases/
+│   └── <service-name>/
+│       ├── blue/
+│       └── green/
+├── state/
+│   ├── active.json
+│   └── history/
+├── config/
+│   ├── services/
+│   └── environments/
+└── logs/
+```
+
+The exact implementation may evolve, but documentation and scripts should keep release paths explicit.
 
 ## Environment Separation
 
-Development, staging, and production should use the same deployment mechanics with different configuration values. The template should keep environment-specific settings explicit and should avoid embedding secrets in repository files.
+Development, staging, and production should use the same deployment mechanics with different configuration values.
 
-Planned environment concerns include:
+Environment-specific values may include:
 
-- application port
-- health-check path
-- image registry and tag
-- NGINX upstream path
+- VM hostnames
+- deployment user
+- service ports
+- health-check paths
+- image registry and tags
+- NGINX upstream paths
 - release state location
-- deployment user and permissions
 - approval requirements
+- secret references
 
-## Future Architecture Direction
+Secrets must not be committed to the repository.
 
-Future releases may add deployment governance, observability, smoke tests, multi-service coordination, and canary-style validation. Larger orchestration platforms such as Kubernetes are intentionally outside the initial MVP but may influence future design notes.
+## Future Architecture
 
+The future `v2.0.0` roadmap targets Kubernetes, Helm, rolling and blue/green strategies, and a cloud-native deployment workflow. Those concepts should not be implemented in the v1 VM architecture.
