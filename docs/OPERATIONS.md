@@ -1,6 +1,6 @@
 # Operations
 
-This document describes the operational expectations for the planned `v1.0.0` VM-based template. It is a runbook outline for future implementation, not a command reference yet.
+This document is the operator runbook for the `v1.0.0` Linux VM template foundation. It covers local validation, release handling, runtime color management, NGINX generation and switching, rollback, deployment, and Jenkins operation.
 
 ## Operator Responsibilities
 
@@ -16,7 +16,7 @@ Operators are responsible for:
 
 ## Service State Initialization
 
-Before future deployment phases can operate on a service, initialize its release/state layout from the service registry:
+Before deployment commands operate on a service, initialize its release/state layout from the service registry:
 
 ```bash
 ./scripts/init-service.sh billing-api
@@ -36,11 +36,11 @@ make show-state SERVICE=billing-api
 
 The inspection command prints service name, deploy path, active color, inactive color, current symlink target, latest history entry, and lock status.
 
-The Phase 2 state foundation does not deploy code, switch NGINX traffic, perform rollback, or call Jenkins.
+State initialization does not deploy code, switch NGINX traffic, perform rollback, or call Jenkins.
 
 ## Release Artifact Management
 
-Phase 4 adds local release artifact directory management.
+Release artifact commands manage local release directories and metadata.
 
 Create a release artifact record:
 
@@ -72,7 +72,7 @@ Retention defaults to `5` releases per service. Operators may set `retention_cou
 
 ## Runtime Color Management
 
-Phase 5 can start, stop, and inspect one blue/green service color container.
+Runtime color commands can start, stop, and inspect one blue/green service color container.
 
 Start a color from an existing release artifact:
 
@@ -107,7 +107,7 @@ Starting a color does not update `state/active_color`, stop the other color, swi
 
 ## NGINX Config Generation
 
-Phase 6 generates reviewable NGINX config files into `build/nginx`:
+NGINX generation writes reviewable config files into `build/nginx`:
 
 ```bash
 ./scripts/generate-nginx.sh
@@ -125,9 +125,9 @@ make validate-nginx
 
 If `nginx` is installed, validation runs `nginx -t` against a temporary config. If it is not installed, static checks run and the command warns that full syntax validation was skipped.
 
-Generated files use the service `active_color` to choose the upstream port. Changing `state/active_color` changes the generated upstream port. Phase 6 does not write to `/etc/nginx`, reload NGINX, switch traffic, update active color, implement rollback, or call Jenkins.
+Generated files use the service `active_color` to choose the upstream port. Changing `state/active_color` changes the generated upstream port. NGINX generation alone does not write to `/etc/nginx`, reload NGINX, switch traffic, update active color, perform rollback, or call Jenkins.
 
-Future production install path recommendation:
+Production install path recommendation:
 
 ```text
 /etc/nginx/conf.d/zero-downtime/<service>.conf
@@ -135,7 +135,7 @@ Future production install path recommendation:
 
 ## Controlled Traffic Switching
 
-Phase 7 switches one service to a target color after health and NGINX validation gates pass.
+Traffic switching moves one service to a target color after health and NGINX validation gates pass.
 
 Dry-run first:
 
@@ -311,7 +311,7 @@ Expected rollback steps:
 
 ## Release Health Validation
 
-Phase 3 adds health validation commands for operators and future deployment scripts.
+Health validation commands are available for operators and deployment scripts.
 
 Run a direct URL check:
 
@@ -332,7 +332,7 @@ Before running `validate-release.sh`, initialize service state:
 ./scripts/init-service.sh billing-api
 ```
 
-A successful health check requires an HTTP `2xx` response. Non-`2xx` responses, connection failures, and timeouts are failures. Phase 3 validation does not deploy code, switch traffic, promote a release, reload NGINX, or run rollback.
+A successful health check requires an HTTP `2xx` response. Non-`2xx` responses, connection failures, and timeouts are failures. Direct health validation does not deploy code, switch traffic, promote a release, reload NGINX, or run rollback by itself.
 
 ## Health-Check Expectations
 

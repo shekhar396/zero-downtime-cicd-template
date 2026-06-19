@@ -1,117 +1,173 @@
 # Zero-Downtime CI/CD Template
 
-A practical, open-source CI/CD template for deploying containerized applications to Linux virtual machines with blue/green releases, NGINX traffic switching, health checks, rollback, and Jenkins pipeline orchestration.
+A practical Linux VM CI/CD template for blue/green deployments with Docker, NGINX traffic switching, health checks, rollback, release history, and Jenkins pipeline examples.
 
-## Current Status
+## Project Overview
 
-This repository contains the v1.0.0 foundation for a stable VM-based zero-downtime deployment template: configuration, state tracking, health checks, release artifacts, runtime color management, NGINX config generation, traffic switching, rollback, deployment orchestration, and Jenkins examples. Validate the template on target Linux VMs before production use.
+This repository provides an application-agnostic release template for teams that deploy services to Linux virtual machines and want safer production changes without adopting a full platform stack first. It standardizes service configuration, release directories, active/inactive color state, health validation, generated NGINX config, controlled traffic switching, rollback, and Jenkins orchestration.
 
-Kubernetes is not part of the current implementation. Kubernetes, Helm, and cloud-native deployment workflows are planned for a future `v2.0.0` direction only.
+The v1.0.0 release is VM-focused. Kubernetes is not implemented in v1; Kubernetes, Helm, and cloud-native workflows remain the v2.0.0 roadmap direction.
 
-## Who This Is For
+## Problem It Solves
 
-This project is intended for:
+Manual VM releases often mix build steps, SSH commands, NGINX edits, health checks, and rollback decisions into one fragile operator flow. This template separates those concerns into clear scripts and docs so teams can:
 
-- DevOps and platform engineers standardizing safer VM deployments
-- teams moving away from manual SSH-based production releases
-- small and mid-sized engineering teams running services on Linux VMs
-- organizations that need release discipline before adopting Kubernetes
-- recruiters and reviewers evaluating practical CI/CD, release, and operations design
+- deploy to an inactive blue/green color before switching traffic
+- validate candidate health before promotion
+- generate and validate NGINX config before reload
+- preserve release history and inspect state during incidents
+- roll back to a retained release through a repeatable workflow
+- run the same flow locally, manually, or from Jenkins
 
-## What v1.0.0 Will Support
+## Who Should Use It
 
-The `v1.0.0` scope is a stable Linux VM deployment template with:
+This project is for DevOps engineers, platform engineers, SRE-minded backend teams, and small to mid-sized organizations running containerized services on Linux VMs. It is also useful as a portfolio-grade example of practical CI/CD architecture, release safety, and operational documentation.
 
-- generic Linux VM deployment model
-- Jenkins pipeline integration
-- Docker-based application packaging and runtime assumptions
-- multi-service blue/green deployment support
-- NGINX upstream traffic switching
-- HTTP health-check gates before promotion
-- rollback to the last known healthy release
-- release directory structure and release state tracking
-- environment-specific configuration guidance
-- operator documentation for setup, deployment, rollback, and troubleshooting
+## Prerequisites
 
-See [docs/RELEASE_SCOPE.md](docs/RELEASE_SCOPE.md) for the authoritative release boundary.
+For local dry-runs and validation:
 
-## What v1.0.0 Will Not Support
+- Bash
+- Git
+- Make
 
-The `v1.0.0` VM template will not include:
+For live runtime and traffic switching on a Linux VM:
+
+- Docker
+- NGINX
+- access to write the configured service deploy paths
+- permission to reload NGINX when performing a live switch
+
+Optional:
+
+- Jenkins for pipeline orchestration using the root `Jenkinsfile` or examples in `examples/jenkins/`
+
+## v1.0.0 Features
+
+- Linux VM deployment template
+- application-agnostic `config/services.yml` service registry
+- multi-service configuration for `billing-api`, `photo-api`, and `drive-api`
+- Docker container runtime support through `runtime: container`
+- blue/green color model with active and inactive ports
+- release directory management under each service deploy path
+- `current` symlink and release metadata tracking
+- release retention cleanup with safe guards
+- HTTP health-check utility with retries and timeout
+- runtime start, stop, and status commands per color
+- NGINX config generation and validation
+- controlled NGINX traffic switching with dry-run mode
+- rollback to previous or selected retained release
+- main deployment orchestrator with dry-run mode
+- Jenkins declarative pipeline examples
+- operator docs, troubleshooting docs, demo guide, and release checklist
+
+## What v1.0.0 Does Not Support
 
 - Kubernetes manifests, Helm charts, operators, or controllers
 - service mesh integration
 - cloud-provider-specific infrastructure provisioning
 - autoscaling orchestration
-- multi-region or multi-cluster deployment
+- multi-region deployment automation
 - database migration automation
-- a hosted CI/CD product
-- a full observability platform
-- claims that every workload can achieve zero downtime without application-level readiness work
+- secret-management platform implementation
+- full observability stack installation
+- runtime types beyond Docker/container mode
+- a guarantee that every workload can achieve zero downtime without application-level readiness and compatibility work
 
-## Architecture Overview
+## Quick Start
 
-The v1 architecture uses Jenkins as the release orchestrator, Docker as the packaging/runtime layer, NGINX as the traffic boundary, and blue/green deployment slots on one or more Linux VMs. A candidate release is deployed to the inactive slot, validated through health checks, and promoted only after passing the configured gate.
-
-```mermaid
-flowchart LR
-    A[Source Repository] --> B[Jenkins Pipeline]
-    B --> C[Build or Pull Tagged Image]
-    C --> D[Deploy Inactive Blue/Green Slot]
-    D --> E[Run Health Checks]
-    E -->|Pass| F[Switch NGINX Upstream]
-    E -->|Fail| G[Keep Current Active Slot]
-    F --> H[Record Release State]
-    H --> I[Rollback Available]
-```
-
-For a deeper design view, read [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
-
-## Repository Structure
-
-```text
-.
-├── Jenkinsfile
-├── Makefile
-├── config/
-│   ├── services.yml
-│   ├── environments/
-│   └── examples/
-├── docs/
-│   ├── ARCHITECTURE.md
-│   ├── CONFIGURATION.md
-│   ├── HEALTH_CHECK.md
-│   ├── OPERATIONS.md
-│   ├── RELEASE_SCOPE.md
-│   └── ROADMAP.md
-├── examples/
-│   ├── jenkins/
-│   ├── mock-artifact/
-│   └── mock-health-server/
-├── nginx/
-│   └── templates/
-└── scripts/
-    ├── lib/
-    ├── deploy.sh
-    ├── rollback.sh
-    ├── switch-traffic.sh
-    └── validation, release, runtime, health, and NGINX helpers
-```
-
-## Deployment Command
-
-The main v1 deployment entrypoint is:
+Validate the repository foundation:
 
 ```bash
-./scripts/deploy.sh billing-api examples/mock-artifact --dry-run
-./scripts/deploy.sh billing-api examples/mock-artifact
+make help
+make validate-config
+make lint-shell
 ```
 
-The deploy command targets the inactive blue/green color, validates health before switching traffic, and leaves the old color running until explicitly stopped. Jenkins integration examples are provided through the root `Jenkinsfile` and `examples/jenkins/`.
+Initialize and inspect the sample service state:
 
-## Jenkins Integration
+```bash
+make init-service SERVICE=billing-api
+make show-state SERVICE=billing-api
+```
 
-The root `Jenkinsfile` provides a declarative pipeline example with parameters for `SERVICE_NAME`, `ARTIFACT_PATH`, `DEPLOY_ENV`, `DRY_RUN`, and `AUTO_APPROVE`.
+Create and list a release from the mock artifact:
+
+```bash
+make create-release SERVICE=billing-api ARTIFACT=examples/mock-artifact
+make list-releases SERVICE=billing-api
+```
+
+Dry-run deployment and rollback flows:
+
+```bash
+make deploy-dry-run SERVICE=billing-api ARTIFACT=examples/mock-artifact
+make rollback-dry-run SERVICE=billing-api
+```
+
+See [docs/QUICK_START.md](docs/QUICK_START.md) and [docs/DEMO_WALKTHROUGH.md](docs/DEMO_WALKTHROUGH.md) for the complete walkthrough.
+
+## Main Commands
+
+```bash
+make validate-config
+make lint-shell
+make init-service SERVICE=billing-api
+make show-state SERVICE=billing-api
+make create-release SERVICE=billing-api ARTIFACT=examples/mock-artifact
+make list-releases SERVICE=billing-api
+make start-color SERVICE=billing-api COLOR=green RELEASE=<release_id>
+make status-color SERVICE=billing-api COLOR=green
+make health URL=http://localhost:18081/health
+make switch-traffic-dry-run SERVICE=billing-api COLOR=green
+make deploy-dry-run SERVICE=billing-api ARTIFACT=examples/mock-artifact
+make rollback-dry-run SERVICE=billing-api
+```
+
+Live commands such as `make start-color`, `make switch-traffic`, `make deploy`, and `make rollback` require the target VM runtime prerequisites. Validate them in staging before production.
+
+## Architecture Summary
+
+Each service has a configured deploy path. Local examples use:
+
+```text
+/tmp/zero-downtime-cicd/services/<service-name>
+```
+
+Production VM configurations should use a durable path such as:
+
+```text
+/opt/apps/<service-name>
+```
+
+The per-service layout is:
+
+```text
+<deploy_path>/
+├── releases/
+├── shared/
+├── state/
+│   ├── active_color
+│   ├── deploy.lock
+│   └── history.log
+└── current -> releases/<release_id>
+```
+
+Deployment creates a release, starts the inactive color, health-checks that color, generates and validates NGINX config, reloads NGINX, then updates `active_color` only after the reload succeeds. The old color remains running until explicitly stopped.
+
+Read [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for the deeper design.
+
+## Jenkins Usage
+
+The root `Jenkinsfile` provides a declarative pipeline with these parameters:
+
+- `SERVICE_NAME`
+- `ARTIFACT_PATH`
+- `DEPLOY_ENV`
+- `DRY_RUN`
+- `AUTO_APPROVE`
+
+The pipeline validates config, runs shell syntax checks, verifies the artifact path, runs deploy dry-run, requires manual approval for production unless explicitly bypassed, performs live deploy only when `DRY_RUN=false`, and prints rollback instructions on failure.
 
 Recommended branch flow:
 
@@ -119,33 +175,32 @@ Recommended branch flow:
 develop -> main -> tag v1.0.0
 ```
 
-Use dry-run by default, require manual approval for production, and run rollback manually after reviewing logs.
+## Rollback Usage
 
-## Quick Start Plan
+Dry-run the default rollback target:
 
-The intended path for contributors, reviewers, and operators is:
+```bash
+./scripts/rollback.sh billing-api --dry-run
+make rollback-dry-run SERVICE=billing-api
+```
 
-1. Read [docs/RELEASE_SCOPE.md](docs/RELEASE_SCOPE.md) to understand what belongs in `v1.0.0`.
-2. Review [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for the VM-based deployment model.
-3. Run `make validate-config` and `make lint-shell` before changing release or deployment scripts.
-4. Use [docs/OPERATIONS.md](docs/OPERATIONS.md) for dry-run, deploy, rollback, and Jenkins operating guidance.
-5. Follow [docs/ROADMAP.md](docs/ROADMAP.md) when proposing features so Kubernetes work stays in future `v2.0.0` scope.
+Rollback to a selected retained release:
 
-## Release Roadmap
+```bash
+./scripts/rollback.sh billing-api --release <release_id> --dry-run
+./scripts/rollback.sh billing-api --release <release_id>
+```
 
-- `v0.x` - planning, scaffolding, and validated increments toward the VM template
+Rollback starts the selected release on the inactive color, health-checks it, and switches traffic only if validation succeeds. It does not stop the old color automatically.
+
+## Roadmap
+
 - `v1.0.0` - stable Linux VM zero-downtime CI/CD template
-- `v1.x` - hardening, examples, compatibility improvements, and operational polish
-- `v2.0.0` - Kubernetes-native roadmap target using Kubernetes, Helm, and cloud-native deployment workflows
+- `v1.x` - hardening, compatibility improvements, and additional examples
+- `v2.0.0` - future Kubernetes-native direction using Kubernetes, Helm, and cloud-native deployment workflows
 
-See [docs/ROADMAP.md](docs/ROADMAP.md) for the full public roadmap.
-
-## Contribution Note
-
-Contributions should preserve the safety-first purpose of the repository. Deployment logic, scripts, Jenkins stages, NGINX switching, rollback behavior, and documentation must be reviewed for operational risk before merge.
-
-See [docs/CONTRIBUTING.md](docs/CONTRIBUTING.md).
+See [docs/ROADMAP.md](docs/ROADMAP.md) for the public roadmap.
 
 ## Disclaimer
 
-This repository is a template foundation, not a guarantee of zero downtime for every workload. Test deployment, health-check, NGINX, rollback, and Jenkins behavior in controlled environments before production use.
+This repository is a template foundation, not a guarantee of zero downtime for every workload. Live Docker and NGINX behavior must be verified on target Linux VMs before production use.

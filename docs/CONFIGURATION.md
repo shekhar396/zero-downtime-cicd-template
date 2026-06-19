@@ -1,6 +1,6 @@
 # Configuration
 
-This document describes the Phase 1 configuration foundation for the planned `v1.0.0` Linux VM deployment template. It does not define deployment, rollback, NGINX generation, or Jenkins pipeline logic.
+This document describes the configuration foundation for the `v1.0.0` Linux VM deployment template. Configuration is consumed by validation, state, release, runtime, NGINX, rollback, deploy, and Jenkins workflows.
 
 ## Configuration Structure
 
@@ -14,7 +14,7 @@ config/
     └── services.example.yml
 ```
 
-`config/services.yml` is the default service registry used by validation and future deployment phases.
+`config/services.yml` is the default service registry used by validation and deployment scripts.
 
 `config/environments/*.yml` contains VM-oriented environment settings such as release roots, state roots, log roots, deployment user, Docker network name, and release history retention.
 
@@ -38,18 +38,18 @@ services:
 
 Required fields:
 
-- `service_name` - stable service identifier used by scripts and future release state
+- `service_name` - stable service identifier used by scripts and release state
 - `runtime` - runtime category, currently `container` in the examples
 - `public_port` - externally exposed service port for the VM-level contract
 - `blue_port` - host port reserved for the blue deployment slot
 - `green_port` - host port reserved for the green deployment slot
-- `health_path` - HTTP path future health checks will call before promotion
+- `health_path` - HTTP path health checks call before promotion
 - `deploy_path` - absolute path where service release data will live on the VM
-- `nginx_server_name` - server name future NGINX configuration will target
+- `nginx_server_name` - server name generated NGINX configuration will target
 
 ## Local Sample Paths
 
-The sample service registry uses `/tmp/zero-downtime-cicd/services` so validation and state initialization can run without root privileges on a development machine. Operators can change `deploy_path` to an approved VM path such as `/opt/zero-downtime-cicd/services/<service>` when preparing a real host.
+The sample service registry uses `/tmp/zero-downtime-cicd/services` so validation and state initialization can run without root privileges on a development machine. Operators can change `deploy_path` to an approved VM path such as `/opt/apps/<service-name>` when preparing a real host.
 
 ## Environment Override Strategy
 
@@ -70,11 +70,11 @@ The intended strategy is:
 - keep service identity and ports in `config/services.yml`
 - keep VM paths, state paths, deployment user, and environment-level settings in `config/environments/*.yml`
 - keep secrets out of this repository
-- keep active blue/green state out of static config; future phases should write state files instead
+- keep active blue/green state out of static config; deployment scripts write state files instead
 
 ## Service Discovery Utility
 
-`scripts/lib/service-discovery.sh` provides shell functions and a small CLI for future scripts.
+`scripts/lib/service-discovery.sh` provides shell functions and a small CLI for repository scripts.
 
 List registered services:
 

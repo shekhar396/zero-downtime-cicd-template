@@ -1,6 +1,6 @@
 # Health Check Validation
 
-Health checks are the release validation gate for the planned `v1.0.0` Linux VM blue/green deployment flow. Phase 3 provides reusable health-check commands only. It does not deploy services, switch traffic, promote releases, reload NGINX, call Jenkins, or roll back releases.
+Health checks are the release validation gate for the `v1.0.0` Linux VM blue/green deployment flow. The health utilities validate direct URLs and registered service candidate ports before traffic promotion.
 
 ## Health Check Contract
 
@@ -104,6 +104,6 @@ The mock server returns:
 - `200 OK` for `/health`
 - `404 Not Found` for every other path
 
-## Future Deployment Integration
+## Deployment Integration
 
-Future deployment phases should call `scripts/validate-release.sh` after a candidate service has been started on the inactive blue/green port and before any traffic promotion decision. A failed health check must stop promotion and leave current traffic untouched.
+Deployment, traffic switch, and rollback flows call health validation after a candidate service has been started on the inactive blue/green port and before any traffic promotion decision. A failed health check must stop promotion and leave current traffic untouched.

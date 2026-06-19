@@ -47,7 +47,6 @@ The stable VM template should include these top-level areas:
 - `scripts/` for deployment, health check, traffic switch, rollback, state, and validation commands
 - `docs/` for architecture, release scope, operations, configuration, health checks, contribution, and roadmap documentation
 - `examples/` for mock artifacts, local validation helpers, and Jenkins examples
-- `tests/` for shell/config/state/NGINX generation validation
 
 ## Required v1.0.0 Scripts
 
