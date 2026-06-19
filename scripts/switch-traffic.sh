@@ -99,11 +99,11 @@ generate_proxy_config_for_color() {
   esac
 }
 
-validate_proxy_dir() {
-  local proxy_runtime="$1" config_dir="$2"
+validate_proxy_path() {
+  local proxy_runtime="$1" config_path="$2"
   case "$proxy_runtime" in
-    nginx) "$ROOT_DIR/scripts/validate-nginx.sh" "$config_dir" >/dev/null ;;
-    apache) "$ROOT_DIR/scripts/validate-apache.sh" "$config_dir" >/dev/null ;;
+    nginx) "$ROOT_DIR/scripts/validate-nginx.sh" "$config_path" >/dev/null ;;
+    apache) "$ROOT_DIR/scripts/validate-apache.sh" "$config_path" >/dev/null ;;
   esac
 }
 
@@ -194,7 +194,11 @@ if [[ "$dry_run" == "yes" ]]; then
   echo "[switch-traffic] step=generate_${proxy_runtime}"
   generated_file="$(generate_proxy_config_for_color "$proxy_runtime" "$service_name" "$target_color")"
   echo "[switch-traffic] generated=$generated_file"
-  validate_proxy_dir "$proxy_runtime" "$build_dir"
+  if [[ "$proxy_runtime" == "apache" ]]; then
+    validate_proxy_path "$proxy_runtime" "$generated_file"
+  else
+    validate_proxy_path "$proxy_runtime" "$build_dir"
+  fi
   echo "[switch-traffic] dry_run=passed"
   echo "[switch-traffic] note=no runtime status check, health call, config install, proxy reload, or active_color update was performed"
   exit 0
@@ -224,7 +228,11 @@ if [[ "$proxy_runtime" == "apache" && -n "$APACHE_ENABLE_CMD" ]]; then
 fi
 
 echo "[switch-traffic] step=validate_${proxy_runtime}"
-validate_proxy_dir "$proxy_runtime" "$install_dir"
+if [[ "$proxy_runtime" == "apache" ]]; then
+  validate_proxy_path "$proxy_runtime" "$installed_file"
+else
+  validate_proxy_path "$proxy_runtime" "$install_dir"
+fi
 
 echo "[switch-traffic] step=reload_${proxy_runtime}"
 bash -c "$reload_cmd"
