@@ -6,7 +6,7 @@ services:
     blue_port: 18080
     green_port: 18081
     health_path: /health
-    deploy_path: /opt/zero-downtime-cicd/releases/billing-api
+    deploy_path: /tmp/zero-downtime-cicd/services/billing-api
     nginx_server_name: billing.example.com
 
   - service_name: photo-api
@@ -15,7 +15,7 @@ services:
     blue_port: 18082
     green_port: 18083
     health_path: /health
-    deploy_path: /opt/zero-downtime-cicd/releases/photo-api
+    deploy_path: /tmp/zero-downtime-cicd/services/photo-api
     nginx_server_name: photos.example.com
 
   - service_name: drive-api
@@ -24,5 +24,5 @@ services:
     blue_port: 18084
     green_port: 18085
     health_path: /health
-    deploy_path: /opt/zero-downtime-cicd/releases/drive-api
+    deploy_path: /tmp/zero-downtime-cicd/services/drive-api
     nginx_server_name: drive.example.com

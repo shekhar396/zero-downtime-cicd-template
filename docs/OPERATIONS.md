@@ -14,6 +14,30 @@ Operators are responsible for:
 - reviewing rollback risk before deployment
 - keeping secrets out of the repository
 
+## Service State Initialization
+
+Before future deployment phases can operate on a service, initialize its release/state layout from the service registry:
+
+```bash
+./scripts/init-service.sh billing-api
+make init-service SERVICE=billing-api
+```
+
+Initialization validates `config/services.yml`, confirms the service exists, creates the service directories, initializes `state/active_color` to `blue` only if it is missing, and creates `state/history.log` only if it is missing.
+
+Running initialization more than once is safe. Existing state is preserved.
+
+Inspect service state with:
+
+```bash
+./scripts/show-state.sh billing-api
+make show-state SERVICE=billing-api
+```
+
+The inspection command prints service name, deploy path, active color, inactive color, current symlink target, latest history entry, and lock status.
+
+The Phase 2 state foundation does not deploy code, switch NGINX traffic, perform rollback, or call Jenkins.
+
 ## Pre-Deployment Checklist
 
 Before a release, confirm:

@@ -32,7 +32,7 @@ services:
     blue_port: 18080
     green_port: 18081
     health_path: /health
-    deploy_path: /opt/zero-downtime-cicd/releases/billing-api
+    deploy_path: /tmp/zero-downtime-cicd/services/billing-api
     nginx_server_name: billing.example.com
 ```
 
@@ -46,6 +46,10 @@ Required fields:
 - `health_path` - HTTP path future health checks will call before promotion
 - `deploy_path` - absolute path where service release data will live on the VM
 - `nginx_server_name` - server name future NGINX configuration will target
+
+## Local Sample Paths
+
+The sample service registry uses `/tmp/zero-downtime-cicd/services` so validation and state initialization can run without root privileges on a development machine. Operators can change `deploy_path` to an approved VM path such as `/opt/zero-downtime-cicd/services/<service>` when preparing a real host.
 
 ## Environment Override Strategy
 
