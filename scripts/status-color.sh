@@ -13,7 +13,8 @@ usage() {
   cat <<'USAGE'
 Usage: ./scripts/status-color.sh <service_name> <color>
 
-Shows container status for one blue/green color.
+Shows runtime status for one blue/green color. Supports runtime: container and
+runtime: systemd.
 USAGE
 }
 

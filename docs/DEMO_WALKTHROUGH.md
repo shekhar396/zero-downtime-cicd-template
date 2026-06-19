@@ -58,14 +58,14 @@ Check the inactive color first:
 make show-state SERVICE=billing-api
 ```
 
-Start the color with Docker on a Linux VM:
+Start the color with the configured runtime. The default sample config uses Docker/container demo mode:
 
 ```bash
 make start-color SERVICE=billing-api COLOR=green RELEASE=<release_id>
 make status-color SERVICE=billing-api COLOR=green
 ```
 
-If Docker is unavailable, this step should fail clearly and leave `active_color` unchanged.
+If Docker is unavailable for a container service, this step should fail clearly and leave `active_color` unchanged. On no-Docker VMs, use `runtime: systemd` with blue/green units instead.
 
 ## 5. Run A Health Check
 
@@ -103,4 +103,4 @@ This is the safest end-to-end command for local review because it does not creat
 
 ## Live Verification Boundary
 
-A live deployment requires Docker and NGINX on the target Linux VM. Verify live start, health, NGINX validation, switch, and rollback in staging before production use.
+A live deployment requires systemd or Docker runtime support plus NGINX on the target Linux VM. Verify live start, health, NGINX validation, switch, and rollback in staging before production use.

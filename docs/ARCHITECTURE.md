@@ -61,14 +61,18 @@ The v1 configuration is YAML, split between service registration and environment
 ```yaml
 services:
   - service_name: billing-api
-    runtime: container
+    runtime: systemd
     public_port: 8080
-    blue_port: 18080
-    green_port: 18081
-    health_path: /health
-    deploy_path: /tmp/zero-downtime-cicd/services/billing-api
-    nginx_server_name: billing.example.com
+    blue_port: 8860
+    green_port: 8861
+    health_path: /api/v1/health
+    deploy_path: /opt/apps/billing-api
+    nginx_server_name: _
     retention_count: 5
+    start_command: sudo systemctl start billing-api-{color}
+    stop_command: sudo systemctl stop billing-api-{color}
+    status_command: sudo systemctl is-active billing-api-{color}
+    env_file: /opt/apps/billing-api/shared/.env
 ```
 
 `config/environments/<environment>.yml` captures environment-level operator context. Service deploy paths remain explicit per service so local validation can use safe paths and production VMs can use durable paths.
@@ -92,7 +96,7 @@ Configuration rules:
 - blue and green ports must differ
 - health paths must begin with `/`
 - deploy paths must be absolute
-- runtime support is `runtime: container` for v1
+- runtime support is `runtime: systemd` or `runtime: container` for v1
 - secrets must not be committed to configuration files
 
 ## Service Registration Model
@@ -102,13 +106,15 @@ A service is registered by adding an entry to `config/services.yml`. The deploym
 A registered service contains:
 
 - `service_name` - stable identifier used in containers, state, logs, and release history
-- `runtime` - v1 supports `container`
+- `runtime` - v1 supports `systemd` and `container`
 - `public_port` - public NGINX listen port for the service
 - `blue_port` and `green_port` - host ports for blue/green service instances
 - `health_path` - readiness endpoint used before promotion
 - `deploy_path` - filesystem root for releases, state, and shared files
 - `nginx_server_name` - generated NGINX server name
 - `retention_count` - retained release count, defaulting to `5` when omitted
+- `start_command`, `stop_command`, and `status_command` - required for `runtime: systemd`
+- `working_directory` and `env_file` - optional systemd runtime context fields
 
 Jenkins may deploy one service or iterate through multiple registered services, but each service keeps independent state and release history.
 
@@ -336,13 +342,21 @@ Release validation depends on service configuration and initialized service stat
 
 The runtime abstraction manages blue/green service instances on Linux VMs.
 
-The v1 foundation supports only:
+The v1 foundation supports:
 
 ```yaml
+runtime: systemd
 runtime: container
 ```
 
-Unsupported runtimes must fail clearly. The runtime layer uses Docker for container operations and follows this container naming convention:
+`runtime: systemd` is recommended for no-Docker Linux VM deployments. Systemd services should use deterministic blue/green unit names such as:
+
+```text
+billing-api-blue
+billing-api-green
+```
+
+`runtime: container` remains available for Docker-backed deployments and demo validation. Container operations follow this naming convention:
 
 ```text
 <service_name>-<color>
@@ -355,7 +369,7 @@ billing-api-blue
 billing-api-green
 ```
 
-For the built-in mock artifact mode, a release containing `artifact/app.txt` can be started with a lightweight demo HTTP container. The container serves `/health` with HTTP `200` and `/` with service, color, release, and artifact metadata.
+For the built-in container mock artifact mode, a release containing `artifact/app.txt` can be started with a lightweight demo HTTP container. The container serves `/health` with HTTP `200` and `/` with service, color, release, and artifact metadata.
 
 Inactive color start flow:
 
@@ -364,9 +378,9 @@ Inactive color start flow:
 3. confirm the release directory exists
 4. resolve the requested color port from `config/services.yml`
 5. start only `<service_name>-<color>`
-6. mount the release artifact directory read-only
-7. expose the selected blue/green port
-8. label the container with service, color, and release ID
+6. run the configured systemd command or mount the release artifact directory read-only for container mode
+7. expose or use the selected blue/green port
+8. label the container with service, color, and release ID when using container mode
 
 Starting a color does not switch traffic. It proves that a candidate process can run on its assigned port before health validation and operator-controlled promotion.
 

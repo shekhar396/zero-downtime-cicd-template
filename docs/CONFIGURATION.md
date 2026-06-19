@@ -11,14 +11,15 @@ config/
 │   ├── staging.yml
 │   └── production.yml
 └── examples/
-    └── services.example.yml
+    ├── services.example.yml
+    └── services.systemd.example.yml
 ```
 
 `config/services.yml` is the default service registry used by validation and deployment scripts.
 
-`config/environments/*.yml` contains VM-oriented environment settings such as release roots, state roots, log roots, deployment user, Docker network name, and release history retention.
+`config/environments/*.yml` contains VM-oriented environment settings such as release roots, state roots, log roots, deployment user, optional Docker network name, and release history retention.
 
-`config/examples/services.example.yml` shows the same service registration format in a safe example location.
+`config/examples/services.example.yml` shows the container/demo service registration format. `config/examples/services.systemd.example.yml` shows the no-Docker systemd format.
 
 ## Service Configuration Format
 
@@ -39,13 +40,73 @@ services:
 Required fields:
 
 - `service_name` - stable service identifier used by scripts and release state
-- `runtime` - runtime category, currently `container` in the examples
+- `runtime` - runtime category, either `systemd` or `container`
 - `public_port` - externally exposed service port for the VM-level contract
 - `blue_port` - host port reserved for the blue deployment slot
 - `green_port` - host port reserved for the green deployment slot
 - `health_path` - HTTP path health checks call before promotion
 - `deploy_path` - absolute path where service release data will live on the VM
 - `nginx_server_name` - server name generated NGINX configuration will target
+
+
+## Systemd Runtime Fields
+
+Use `runtime: systemd` for live Linux VM deployments where Docker is unavailable or not desired. Systemd services should be split by color, for example:
+
+```text
+billing-api-blue
+billing-api-green
+```
+
+Example:
+
+```yaml
+services:
+  - service_name: billing-api
+    runtime: systemd
+    public_port: 8080
+    blue_port: 8860
+    green_port: 8861
+    health_path: /api/v1/health
+    deploy_path: /opt/apps/billing-api
+    nginx_server_name: _
+    retention_count: 5
+    start_command: sudo systemctl start billing-api-{color}
+    stop_command: sudo systemctl stop billing-api-{color}
+    status_command: sudo systemctl is-active billing-api-{color}
+    working_directory: /opt/apps/billing-api/current/artifact
+    env_file: /opt/apps/billing-api/shared/.env
+```
+
+For `runtime: systemd`, these fields are required:
+
+- `start_command`
+- `stop_command`
+- `status_command`
+
+These fields are optional but supported:
+
+- `working_directory`
+- `env_file`
+
+Runtime commands may use placeholders:
+
+- `{color}` - `blue` or `green`
+- `{release_id}` - release being started, when available
+- `{port}` - configured blue or green port
+- `{release_dir}` - release directory path
+- `{deploy_path}` - service deploy path
+- `{service_name}` - service name
+
+The runtime helper also exports `ZERO_DOWNTIME_SERVICE_NAME`, `ZERO_DOWNTIME_COLOR`, `ZERO_DOWNTIME_RELEASE_ID`, `ZERO_DOWNTIME_PORT`, `ZERO_DOWNTIME_RELEASE_DIR`, `ZERO_DOWNTIME_DEPLOY_PATH`, `ZERO_DOWNTIME_WORKING_DIRECTORY`, and `ZERO_DOWNTIME_ENV_FILE` before running a systemd command.
+
+`PORT` should be injected per color through the systemd unit, a drop-in, or the configured environment file. This template does not rewrite systemd unit files.
+
+A commented `pico-photos-api` placeholder is included in `config/examples/services.systemd.example.yml` for the first production validation target. Its real ports and health path are intentionally marked `TBD` until known.
+
+## Container Runtime Fields
+
+Use `runtime: container` for Docker-backed VM deployments or the built-in demo artifact flow. Container support remains available, but it is optional for no-Docker servers.
 
 ## Local Sample Paths
 
@@ -123,6 +184,8 @@ Validate an example file:
 The validator checks:
 
 - all required fields are present
+- runtime is either `systemd` or `container`
+- systemd services define `start_command`, `stop_command`, and `status_command`
 - service names are unique
 - ports are unique across `public_port`, `blue_port`, and `green_port`
 - `blue_port` and `green_port` differ for each service
@@ -137,4 +200,4 @@ The default `config/services.yml` registers three realistic services:
 - `photo-api`
 - `drive-api`
 
-These examples are Linux VM focused and intentionally stop at configuration. They do not deploy containers, switch traffic, generate NGINX files, call Jenkins, or perform rollback.
+These examples are Linux VM focused. Container examples are safe local defaults; the systemd example is intended for no-Docker VM deployments after service ports, health paths, and units are confirmed.

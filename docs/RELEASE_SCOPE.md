@@ -6,7 +6,7 @@ This document is the authoritative scope boundary for the public roadmap.
 
 `v1.0.0` is the stable VM-based zero-downtime CI/CD template.
 
-It should help teams deploy containerized services to generic Linux VMs using Jenkins, Docker-compatible images, NGINX, health checks, release state, release history, and rollback.
+It should help teams deploy services to generic Linux VMs using Jenkins, systemd or Docker runtime management, NGINX, health checks, release state, release history, and rollback.
 
 ## v1.0.0 Must Include
 
@@ -15,8 +15,8 @@ It should help teams deploy containerized services to generic Linux VMs using Je
 - YAML configuration for services and environments
 - Jenkins pipeline integration through a repository `Jenkinsfile`
 - Jenkins declarative pipeline examples
-- Docker image build or pull workflow
-- container runtime process management for blue/green service instances
+- systemd runtime process management for no-Docker blue/green service instances
+- optional Docker/container runtime process management for demo or container-backed services
 - immutable image tagging guidance
 - multi-service blue/green deployment support
 - NGINX config generation and validation before traffic switching
@@ -90,7 +90,7 @@ These scripts provide the current v1 foundation and should continue to preserve 
 - secret-management platform implementation
 - full monitoring or tracing stack installation
 - application-specific deployment logic embedded in the core scripts
-- runtime support beyond `runtime: container` in the v1 foundation
+- runtime support beyond `runtime: systemd` and `runtime: container` in the v1 foundation
 - generated NGINX config writes to `/etc/nginx` by default
 
 ## Stability Criteria

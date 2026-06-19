@@ -12,7 +12,7 @@ Required for repository validation:
 
 Required for live service runtime and traffic switching on a Linux VM:
 
-- Docker
+- systemd for no-Docker deployments, or Docker for container/demo deployments
 - NGINX
 - permission to write the configured service deploy path
 - permission to reload NGINX for live traffic switching
@@ -67,7 +67,7 @@ Dry-run mode shows the planned release, target color, target port, health URL, a
 
 ## Live Runtime Validation
 
-Live runtime validation requires Docker. Example:
+For no-Docker VMs, use `runtime: systemd` with blue/green units such as `billing-api-blue` and `billing-api-green`. For Docker-backed demo validation, use `runtime: container`. Example container/demo commands:
 
 ```bash
 make start-color SERVICE=billing-api COLOR=green RELEASE=<release_id>

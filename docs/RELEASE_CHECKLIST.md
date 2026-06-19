@@ -20,17 +20,17 @@ git diff --check
 - `docs/DEMO_WALKTHROUGH.md` covers create release, start color, health check, switch dry-run, rollback dry-run, and deploy dry-run.
 - `docs/TROUBLESHOOTING.md` documents common operator failures.
 - Kubernetes is described only as future v2.0.0 roadmap scope.
-- v1.0.0 is consistently described as a Linux VM template using Docker/container runtime.
+- v1.0.0 is consistently described as a Linux VM template using systemd or optional Docker/container runtime.
 - Local deploy path examples use `/tmp/zero-downtime-cicd/services/<service-name>`.
 - Production deploy path recommendations use `/opt/apps/<service-name>`.
 
 ## Manual VM Verification
 
-Before production use, manually verify on a Linux VM with Docker and NGINX installed:
+Before production use, manually verify on a Linux VM with systemd or Docker runtime support plus NGINX installed:
 
 - service initialization creates the expected directory layout
 - release creation copies artifacts and writes metadata
-- runtime start launches the selected color container
+- runtime start launches the selected systemd unit or color container
 - health check passes against the selected color port
 - generated NGINX config passes real `nginx -t`
 - traffic switch reloads NGINX and updates `active_color` only after success

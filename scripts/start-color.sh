@@ -15,9 +15,10 @@ usage() {
   cat <<'USAGE'
 Usage: ./scripts/start-color.sh <service_name> <color> <release_id>
 
-Starts one blue/green color container for an existing release artifact. This does
-not switch traffic, update active_color, stop the other color, perform rollback,
-or call Jenkins.
+Starts one blue/green color runtime for an existing release artifact. For
+runtime: container this starts Docker; for runtime: systemd this runs the
+configured start_command. This does not switch traffic, update active_color,
+stop the other color, perform rollback, or call Jenkins.
 USAGE
 }
 

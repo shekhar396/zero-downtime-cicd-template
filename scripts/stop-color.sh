@@ -13,7 +13,9 @@ usage() {
   cat <<'USAGE'
 Usage: ./scripts/stop-color.sh <service_name> <color>
 
-Stops and removes only the target color container named <service_name>-<color>.
+Stops only the target color runtime. For runtime: container this removes the
+Docker container named <service_name>-<color>; for runtime: systemd this runs
+the configured stop_command.
 USAGE
 }
 

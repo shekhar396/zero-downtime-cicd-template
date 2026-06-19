@@ -1,6 +1,6 @@
 # Zero-Downtime CI/CD Template
 
-A practical Linux VM CI/CD template for blue/green deployments with Docker, NGINX traffic switching, health checks, rollback, release history, and Jenkins pipeline examples.
+A practical Linux VM CI/CD template for blue/green deployments with systemd or Docker, NGINX traffic switching, health checks, rollback, release history, and Jenkins pipeline examples.
 
 ## Project Overview
 
@@ -33,7 +33,7 @@ For local dry-runs and validation:
 
 For live runtime and traffic switching on a Linux VM:
 
-- Docker
+- systemd for no-Docker VM deployments, or Docker for container/demo deployments
 - NGINX
 - access to write the configured service deploy paths
 - permission to reload NGINX when performing a live switch
@@ -47,7 +47,8 @@ Optional:
 - Linux VM deployment template
 - application-agnostic `config/services.yml` service registry
 - multi-service configuration for `billing-api`, `photo-api`, and `drive-api`
-- Docker container runtime support through `runtime: container`
+- first-class systemd runtime support through `runtime: systemd`
+- optional Docker/container runtime support through `runtime: container`
 - blue/green color model with active and inactive ports
 - release directory management under each service deploy path
 - `current` symlink and release metadata tracking
@@ -71,7 +72,7 @@ Optional:
 - database migration automation
 - secret-management platform implementation
 - full observability stack installation
-- runtime types beyond Docker/container mode
+- runtime types beyond `systemd` and `container`
 - a guarantee that every workload can achieve zero downtime without application-level readiness and compatibility work
 
 ## Quick Start
@@ -124,7 +125,7 @@ make deploy-dry-run SERVICE=billing-api ARTIFACT=examples/mock-artifact
 make rollback-dry-run SERVICE=billing-api
 ```
 
-Live commands such as `make start-color`, `make switch-traffic`, `make deploy`, and `make rollback` require the target VM runtime prerequisites. Validate them in staging before production.
+Live commands such as `make start-color`, `make switch-traffic`, `make deploy`, and `make rollback` require the target VM runtime prerequisites. For no-Docker VMs, use `runtime: systemd` and blue/green systemd units such as `billing-api-blue` and `billing-api-green`. Validate them in staging before production.
 
 ## Architecture Summary
 
@@ -152,6 +153,15 @@ The per-service layout is:
 │   └── history.log
 └── current -> releases/<release_id>
 ```
+
+Systemd runtime services should use separate blue/green units, for example:
+
+```text
+billing-api-blue
+billing-api-green
+```
+
+Inject the service port per color through the systemd unit, drop-in, or environment file. The template resolves the blue/green port from config and exposes it to runtime commands as `ZERO_DOWNTIME_PORT`, but it does not rewrite systemd unit files automatically.
 
 Deployment creates a release, starts the inactive color, health-checks that color, generates and validates NGINX config, reloads NGINX, then updates `active_color` only after the reload succeeds. The old color remains running until explicitly stopped.
 
@@ -203,4 +213,4 @@ See [docs/ROADMAP.md](docs/ROADMAP.md) for the public roadmap.
 
 ## Disclaimer
 
-This repository is a template foundation, not a guarantee of zero downtime for every workload. Live Docker and NGINX behavior must be verified on target Linux VMs before production use.
+This repository is a template foundation, not a guarantee of zero downtime for every workload. Live systemd or Docker runtime behavior and NGINX behavior must be verified on target Linux VMs before production use.

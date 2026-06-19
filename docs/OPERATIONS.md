@@ -7,7 +7,7 @@ This document is the operator runbook for the `v1.0.0` Linux VM template foundat
 Operators are responsible for:
 
 - provisioning and securing Linux VMs
-- installing and maintaining Docker and NGINX
+- installing and maintaining systemd services or Docker, plus NGINX
 - configuring Jenkins credentials and deployment access
 - defining service configuration and health-check paths
 - validating releases in staging before production
@@ -72,7 +72,10 @@ Retention defaults to `5` releases per service. Operators may set `retention_cou
 
 ## Runtime Color Management
 
-Runtime color commands can start, stop, and inspect one blue/green service color container.
+Runtime color commands can start, stop, and inspect one blue/green service color. v1 supports two runtimes:
+
+- `runtime: systemd` - recommended for no-Docker Linux VM deployments
+- `runtime: container` - optional Docker-backed runtime and demo mode
 
 Start a color from an existing release artifact:
 
@@ -95,13 +98,22 @@ Stop only that color:
 make stop-color SERVICE=billing-api COLOR=green
 ```
 
-Container names are deterministic:
+Systemd unit names should be deterministic by color, for example:
+
+```text
+billing-api-blue
+billing-api-green
+```
+
+For systemd services, `start_command`, `stop_command`, and `status_command` come from `config/services.yml`. Commands may use `{color}`, `{release_id}`, `{port}`, `{release_dir}`, `{deploy_path}`, and `{service_name}` placeholders. The service port should be injected per color through the systemd unit, a drop-in, or the configured environment file.
+
+Container names remain deterministic for Docker-backed services:
 
 ```text
 <service_name>-<color>
 ```
 
-The runtime foundation supports only `runtime: container` and requires Docker on the Linux VM. The demo mode expects `artifact/app.txt` in the release directory and starts a small HTTP service that returns `200` on `/health`.
+Container demo mode expects `artifact/app.txt` in the release directory and starts a small HTTP service that returns `200` on `/health`.
 
 Starting a color does not update `state/active_color`, stop the other color, switch NGINX traffic, run rollback, or call Jenkins. Operators should treat this phase as process startup validation only.
 
@@ -206,7 +218,7 @@ Required Jenkins agent tools:
 - Bash
 - Make
 - Git
-- Docker for live container runtime steps
+- systemd for no-Docker runtime steps, or Docker for container runtime steps
 - NGINX on target VMs for real config validation and reload
 - access to the Linux VM deployment target if scripts are adapted for remote execution
 

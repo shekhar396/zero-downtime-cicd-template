@@ -33,16 +33,24 @@ Production recommendation:
 /opt/apps/billing-api/state
 ```
 
-## Docker Is Missing Or Container Start Fails
+## Runtime Start Fails
 
-Live color startup requires Docker on the target Linux VM:
+For no-Docker Linux VMs, use `runtime: systemd` and confirm the blue/green units exist:
+
+```bash
+systemctl status billing-api-blue
+systemctl status billing-api-green
+make status-color SERVICE=billing-api COLOR=green
+```
+
+For Docker-backed demo deployments, confirm Docker is installed:
 
 ```bash
 docker --version
 make status-color SERVICE=billing-api COLOR=green
 ```
 
-The v1 runtime supports `runtime: container` only. Unsupported runtime values fail intentionally.
+The v1 runtime supports `runtime: systemd` and `runtime: container`. Unsupported runtime values fail intentionally.
 
 ## Health Checks Fail
 
@@ -93,7 +101,7 @@ Manual rollback requires the selected release directory to exist under `releases
 
 ## Jenkins Pipeline Fails
 
-Check that the Jenkins agent has Bash, Git, Make, and access to the repository workspace. Live deploy stages also require Docker and NGINX access on the target VM. Keep production secrets in Jenkins credentials, not Jenkinsfiles.
+Check that the Jenkins agent has Bash, Git, Make, and access to the repository workspace. Live deploy stages also require systemd or Docker runtime access plus NGINX access on the target VM. Keep production secrets in Jenkins credentials, not Jenkinsfiles.
 
 ## Production Validation Note
 

@@ -35,6 +35,11 @@ validate_services_file() {
       deploy_path = ""
       nginx_server_name = ""
       retention_count = ""
+      start_command = ""
+      stop_command = ""
+      status_command = ""
+      working_directory = ""
+      env_file = ""
     }
     function is_number(value) {
       return value ~ /^[0-9]+$/
@@ -69,6 +74,26 @@ validate_services_file() {
       validate_port(service_name, "public_port", public_port)
       validate_port(service_name, "blue_port", blue_port)
       validate_port(service_name, "green_port", green_port)
+
+      if (runtime != "container" && runtime != "systemd") {
+        printf "[validate-config] ERROR: runtime for %s must be container or systemd: %s\n", service_name, runtime > "/dev/stderr"
+        errors++
+      }
+
+      if (runtime == "systemd") {
+        if (start_command == "") {
+          printf "[validate-config] ERROR: start_command is required for systemd service %s\n", service_name > "/dev/stderr"
+          errors++
+        }
+        if (stop_command == "") {
+          printf "[validate-config] ERROR: stop_command is required for systemd service %s\n", service_name > "/dev/stderr"
+          errors++
+        }
+        if (status_command == "") {
+          printf "[validate-config] ERROR: status_command is required for systemd service %s\n", service_name > "/dev/stderr"
+          errors++
+        }
+      }
 
       if (blue_port == green_port) {
         printf "[validate-config] ERROR: blue_port and green_port must differ for %s\n", service_name > "/dev/stderr"
@@ -113,6 +138,11 @@ validate_services_file() {
       else if (key == "deploy_path") deploy_path = value
       else if (key == "nginx_server_name") nginx_server_name = value
       else if (key == "retention_count") retention_count = value
+      else if (key == "start_command") start_command = value
+      else if (key == "stop_command") stop_command = value
+      else if (key == "status_command") status_command = value
+      else if (key == "working_directory") working_directory = value
+      else if (key == "env_file") env_file = value
     }
     END {
       validate_record()

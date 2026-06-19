@@ -18,7 +18,7 @@ No unreleased changes yet.
 - Service state initialization and inspection with active color, release history, lock status, and `current` symlink visibility.
 - Release artifact creation, metadata, listing, history entries, and retention cleanup.
 - HTTP health-check utility with retry and timeout support.
-- Docker/container runtime color management for blue and green service instances.
+- Systemd and Docker/container runtime color management for blue and green service instances.
 - NGINX config generation and validation with safe local output defaults.
 - Controlled traffic switching with health and NGINX validation gates.
 - Rollback support for previous retained or manually selected releases.
@@ -30,15 +30,15 @@ No unreleased changes yet.
 ### Changed
 
 - README now presents the project as a public v1.0.0 Linux VM template foundation.
-- Documentation now consistently describes v1 as Docker/container runtime on Linux VMs.
+- Documentation now describes v1 as a Linux VM template supporting systemd and optional Docker/container runtimes.
 - Production deploy path guidance uses `/opt/apps/<service-name>`.
 - Local validation deploy path guidance uses `/tmp/zero-downtime-cicd/services/<service-name>`.
 - Kubernetes, Helm, and cloud-native workflows remain documented only as future v2.0.0 roadmap scope.
 
 ### Known limitations
 
-- Live Docker and NGINX behavior must be verified on target Linux VMs before production use.
-- v1 supports only `runtime: container`.
+- Live systemd or Docker runtime behavior and NGINX behavior must be verified on target Linux VMs before production use.
+- v1 supports `runtime: systemd` and `runtime: container`; other runtimes are unsupported.
 - The template does not automate database migrations, secrets platforms, service mesh, autoscaling, or cloud infrastructure.
 - Zero downtime still depends on application readiness, backward compatibility, and safe dependency behavior.
 - Jenkinsfiles are examples and should be reviewed in the target Jenkins controller before use.
