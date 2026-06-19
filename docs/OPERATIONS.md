@@ -177,6 +177,64 @@ NGINX_RELOAD_CMD="sudo systemctl reload nginx" ./scripts/switch-traffic.sh billi
 
 `active_color` is updated only after NGINX validation and reload succeed. If target container validation, health checks, config validation, or reload fails, the previous active color remains unchanged. The old color is not stopped automatically.
 
+## Main Deployment Command
+
+Dry-run a deployment plan:
+
+```bash
+./scripts/deploy.sh billing-api examples/mock-artifact --dry-run
+make deploy-dry-run SERVICE=billing-api ARTIFACT=examples/mock-artifact
+```
+
+Run deployment:
+
+```bash
+./scripts/deploy.sh billing-api examples/mock-artifact
+make deploy SERVICE=billing-api ARTIFACT=examples/mock-artifact
+```
+
+The deploy command creates a release, starts the inactive color, health-checks the inactive color, switches traffic, and records deployment history. It keeps the old active color running until an operator explicitly stops it.
+
+If release creation, startup, health validation, or traffic switching fails, `active_color` remains unchanged. The release artifact is not deleted automatically so operators can inspect it.
+
+## Jenkins Pipeline Operation
+
+The repository includes a root `Jenkinsfile` and examples in `examples/jenkins/`.
+
+Required Jenkins agent tools:
+
+- Bash
+- Make
+- Git
+- Docker for live container runtime steps
+- NGINX on target VMs for real config validation and reload
+- access to the Linux VM deployment target if scripts are adapted for remote execution
+
+Pipeline parameters:
+
+- `SERVICE_NAME` - registered service name
+- `ARTIFACT_PATH` - artifact path in the workspace
+- `DEPLOY_ENV` - `staging` or `production`
+- `DRY_RUN` - run validation and deploy dry-run only
+- `AUTO_APPROVE` - skip manual production approval only when intentionally enabled
+
+The pipeline stages are checkout, config validation, shell linting, artifact preparation, deploy dry-run, production approval, live deploy, post-deployment state, and rollback instructions on failure.
+
+Rollback is manual and explicit:
+
+```bash
+./scripts/rollback.sh billing-api --dry-run
+./scripts/rollback.sh billing-api
+```
+
+Recommended branch flow:
+
+```text
+develop -> main -> tag v1.0.0
+```
+
+Do not hard-code production secrets in Jenkinsfiles. Use Jenkins credentials and environment-specific controls.
+
 ## Pre-Deployment Checklist
 
 Before a release, confirm:

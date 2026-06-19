@@ -14,11 +14,13 @@ It should help teams deploy containerized services to generic Linux VMs using Je
 - application-agnostic service registration
 - YAML configuration for services and environments
 - Jenkins pipeline integration through a repository `Jenkinsfile`
+- Jenkins declarative pipeline examples
 - Docker image build or pull workflow
 - container runtime process management for blue/green service instances
 - immutable image tagging guidance
 - multi-service blue/green deployment support
 - NGINX config generation and validation before traffic switching
+- main one-service deployment orchestrator
 - controlled single-service NGINX traffic switching from generated config
 - dry-run traffic switch validation
 - HTTP health-check gates before promotion
@@ -41,35 +43,39 @@ The stable VM template should include these top-level areas:
 - `Jenkinsfile` for CI/CD orchestration
 - `config/services.yml` for service registration
 - `config/environments/*.yml` for environment-specific VM settings
-- `config/nginx/*.tpl` for NGINX template generation
+- `nginx/templates/*.tpl` for NGINX template generation
 - `scripts/` for deployment, health check, traffic switch, rollback, state, and validation commands
 - `docs/` for architecture, release scope, operations, configuration, health checks, contribution, and roadmap documentation
-- `examples/` for single-service and multi-service configurations
+- `examples/` for mock artifacts, local validation helpers, and Jenkins examples
 - `tests/` for shell/config/state/NGINX generation validation
 
 ## Required v1.0.0 Scripts
 
 The v1 script inventory is:
 
-- `scripts/init-host.sh`
 - `scripts/validate-config.sh`
-- `scripts/deploy.sh`
-- `scripts/health-check.sh`
+- `scripts/init-service.sh`
+- `scripts/show-state.sh`
+- `scripts/healthcheck.sh`
+- `scripts/validate-release.sh`
+- `scripts/create-release.sh`
+- `scripts/list-releases.sh`
+- `scripts/start-color.sh`
+- `scripts/stop-color.sh`
+- `scripts/status-color.sh`
 - `scripts/generate-nginx.sh`
 - `scripts/validate-nginx.sh`
 - `scripts/switch-traffic.sh`
-- `scripts/create-release.sh`
-- `scripts/list-releases.sh`
 - `scripts/rollback.sh`
-- `scripts/smoke-test.sh`
-- `scripts/common/config.sh`
-- `scripts/common/colors.sh`
-- `scripts/common/docker.sh`
-- `scripts/common/logging.sh`
-- `scripts/common/nginx.sh`
-- `scripts/common/state.sh`
+- `scripts/deploy.sh`
+- `scripts/lib/service-discovery.sh`
+- `scripts/lib/state.sh`
+- `scripts/lib/health.sh`
+- `scripts/lib/release.sh`
+- `scripts/lib/runtime.sh`
+- `scripts/lib/nginx.sh`
 
-These scripts are required for the v1 design but should be implemented only after the repository structure and architecture are accepted.
+These scripts provide the current v1 foundation and should continue to preserve safe defaults, dry-run behavior, and clear operator output.
 
 ## v1.0.0 Must Not Include
 
@@ -78,6 +84,7 @@ These scripts are required for the v1 design but should be implemented only afte
 - Kubernetes operators or controllers
 - service mesh configuration
 - cloud-provider-specific infrastructure provisioning
+- production secrets embedded in Jenkinsfiles
 - autoscaling infrastructure
 - multi-region deployment automation
 - database migration orchestration
@@ -85,8 +92,7 @@ These scripts are required for the v1 design but should be implemented only afte
 - full monitoring or tracing stack installation
 - application-specific deployment logic embedded in the core scripts
 - runtime support beyond `runtime: container` in the v1 foundation
-- generated NGINX config writes to `/etc/nginx` before a future install/switch phase
-- release artifact management that switches traffic or performs rollback
+- generated NGINX config writes to `/etc/nginx` by default
 
 ## Stability Criteria
 

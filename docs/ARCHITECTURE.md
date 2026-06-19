@@ -558,6 +558,28 @@ Rollback does not delete release artifacts and does not stop the old active colo
 
 Dry-run mode prints the selected release, target color, candidate port, release directory, and intended start/health/switch commands without starting containers, reloading NGINX, switching traffic, or updating `active_color`.
 
+## Phase 9 Deployment Orchestrator
+
+Phase 9 adds the main one-service deployment orchestrator, `scripts/deploy.sh`.
+
+Deployment workflow:
+
+1. validate service configuration
+2. confirm the service exists
+3. initialize service state if needed
+4. read active color
+5. choose inactive color as target
+6. create a release from the artifact source
+7. start the target color with the new release
+8. health-check the target color port
+9. switch traffic to the target color
+10. append deployment history
+11. leave the old active color running
+
+Dry-run prints the planned release creation, target color, target port, health URL, and intended switch command. It does not create a release, start a container, reload NGINX, switch traffic, update `active_color`, or clean up artifacts.
+
+Failure safety: if release creation, target startup, health validation, or traffic switching fails, the previous active color remains unchanged. Failed release artifacts are retained for inspection.
+
 ## Required v1.0.0 Scripts
 
 These scripts are required for `v1.0.0`, but this document does not implement them.
@@ -566,7 +588,7 @@ These scripts are required for `v1.0.0`, but this document does not implement th
 | --- | --- |
 | `scripts/init-host.sh` | Create target VM directories, validate required tools, and prepare Docker network assumptions. |
 | `scripts/validate-config.sh` | Validate service and environment YAML before deployment. |
-| `scripts/deploy.sh` | Orchestrate candidate deployment for one or more services. |
+| `scripts/deploy.sh` | Orchestrate one-service release creation, inactive color startup, health validation, and traffic switch. |
 | `scripts/health-check.sh` | Run HTTP health checks with timeout and retry behavior. |
 | `scripts/generate-nginx.sh` | Render NGINX config into `build/nginx` from service registration and active color state. |
 | `scripts/validate-nginx.sh` | Validate generated NGINX config statically and with `nginx -t` when available. |

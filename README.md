@@ -4,7 +4,7 @@ A practical, open-source CI/CD template for deploying containerized applications
 
 ## Current Status
 
-This repository is in documentation and release-scope planning stage. The public target for `v1.0.0` is a stable VM-based zero-downtime deployment template. Scripts and pipeline implementation are intentionally not present yet.
+This repository contains the v1.0.0 foundation for a stable VM-based zero-downtime deployment template: configuration, state tracking, health checks, release artifacts, runtime color management, NGINX config generation, traffic switching, rollback, deployment orchestration, and Jenkins examples. Validate the template on target Linux VMs before production use.
 
 Kubernetes is not part of the current implementation. Kubernetes, Helm, and cloud-native deployment workflows are planned for a future `v2.0.0` direction only.
 
@@ -71,34 +71,65 @@ For a deeper design view, read [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 
 ```text
 .
+├── Jenkinsfile
+├── Makefile
+├── config/
+│   ├── services.yml
+│   ├── environments/
+│   └── examples/
 ├── docs/
-│   ├── AI_AGENT_USAGE.md
 │   ├── ARCHITECTURE.md
-│   ├── CONTRIBUTING.md
-│   ├── MVP.md
+│   ├── CONFIGURATION.md
+│   ├── HEALTH_CHECK.md
 │   ├── OPERATIONS.md
-│   ├── PRE_RELEASE_PLAN.md
-│   ├── REAL_WORLD_PROBLEMS.md
-│   ├── RELEASE_PLAN.md
 │   ├── RELEASE_SCOPE.md
 │   └── ROADMAP.md
-├── .editorconfig
-├── .env.example
-├── .gitignore
-├── CHANGELOG.md
-├── LICENSE
-└── README.md
+├── examples/
+│   ├── jenkins/
+│   ├── mock-artifact/
+│   └── mock-health-server/
+├── nginx/
+│   └── templates/
+└── scripts/
+    ├── lib/
+    ├── deploy.sh
+    ├── rollback.sh
+    ├── switch-traffic.sh
+    └── validation, release, runtime, health, and NGINX helpers
 ```
+
+## Deployment Command
+
+The main v1 deployment entrypoint is:
+
+```bash
+./scripts/deploy.sh billing-api examples/mock-artifact --dry-run
+./scripts/deploy.sh billing-api examples/mock-artifact
+```
+
+The deploy command targets the inactive blue/green color, validates health before switching traffic, and leaves the old color running until explicitly stopped. Jenkins integration examples are provided through the root `Jenkinsfile` and `examples/jenkins/`.
+
+## Jenkins Integration
+
+The root `Jenkinsfile` provides a declarative pipeline example with parameters for `SERVICE_NAME`, `ARTIFACT_PATH`, `DEPLOY_ENV`, `DRY_RUN`, and `AUTO_APPROVE`.
+
+Recommended branch flow:
+
+```text
+develop -> main -> tag v1.0.0
+```
+
+Use dry-run by default, require manual approval for production, and run rollback manually after reviewing logs.
 
 ## Quick Start Plan
 
-Implementation has not started yet. The intended path for contributors and reviewers is:
+The intended path for contributors, reviewers, and operators is:
 
 1. Read [docs/RELEASE_SCOPE.md](docs/RELEASE_SCOPE.md) to understand what belongs in `v1.0.0`.
 2. Review [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for the VM-based deployment model.
-3. Use [docs/OPERATIONS.md](docs/OPERATIONS.md) as the operational checklist for future scripts and pipeline stages.
-4. Follow [docs/ROADMAP.md](docs/ROADMAP.md) when proposing features so Kubernetes work stays in future `v2.0.0` scope.
-5. Keep documentation aligned with implementation as scripts, Jenkinsfiles, and examples are added.
+3. Run `make validate-config` and `make lint-shell` before changing release or deployment scripts.
+4. Use [docs/OPERATIONS.md](docs/OPERATIONS.md) for dry-run, deploy, rollback, and Jenkins operating guidance.
+5. Follow [docs/ROADMAP.md](docs/ROADMAP.md) when proposing features so Kubernetes work stays in future `v2.0.0` scope.
 
 ## Release Roadmap
 
@@ -117,4 +148,4 @@ See [docs/CONTRIBUTING.md](docs/CONTRIBUTING.md).
 
 ## Disclaimer
 
-This repository is not production-ready yet. It defines the roadmap and release scope for a future stable VM-based zero-downtime CI/CD template. Any deployment logic added later must be tested in controlled environments before production use.
+This repository is a template foundation, not a guarantee of zero downtime for every workload. Test deployment, health-check, NGINX, rollback, and Jenkins behavior in controlled environments before production use.

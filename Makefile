@@ -1,7 +1,10 @@
-.PHONY: validate-config init-service show-state health create-release list-releases start-color stop-color status-color generate-nginx validate-nginx switch-traffic switch-traffic-dry-run rollback rollback-dry-run
+.PHONY: validate-config lint-shell init-service show-state health create-release list-releases start-color stop-color status-color generate-nginx validate-nginx switch-traffic switch-traffic-dry-run rollback rollback-dry-run deploy deploy-dry-run
 
 validate-config:
 	./scripts/validate-config.sh
+
+lint-shell:
+	find scripts examples -type f -name "*.sh" -print0 | xargs -0 bash -n
 
 init-service:
 	@if [ -z "$(SERVICE)" ]; then \
@@ -104,3 +107,18 @@ rollback-dry-run:
 	else \
 		./scripts/rollback.sh "$(SERVICE)" --dry-run; \
 	fi
+
+
+deploy:
+	@if [ -z "$(SERVICE)" ] || [ -z "$(ARTIFACT)" ]; then \
+		echo "Usage: make deploy SERVICE=<service_name> ARTIFACT=<artifact_source>"; \
+		exit 1; \
+	fi
+	./scripts/deploy.sh "$(SERVICE)" "$(ARTIFACT)"
+
+deploy-dry-run:
+	@if [ -z "$(SERVICE)" ] || [ -z "$(ARTIFACT)" ]; then \
+		echo "Usage: make deploy-dry-run SERVICE=<service_name> ARTIFACT=<artifact_source>"; \
+		exit 1; \
+	fi
+	./scripts/deploy.sh "$(SERVICE)" "$(ARTIFACT)" --dry-run
