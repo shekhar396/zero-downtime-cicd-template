@@ -1,163 +1,470 @@
 # Architecture
 
-This document describes the planned `v1.0.0` architecture for a Linux VM-based zero-downtime CI/CD template. It is intentionally focused on virtual machines, Jenkins, Docker, NGINX, health checks, rollback, and release state management.
+This document describes the planned `v1.0.0` architecture for a generic Linux VM-based zero-downtime CI/CD template. It is intentionally application-agnostic and focused on Jenkins, Docker-compatible service images, NGINX traffic switching, blue/green deployment slots, rollback, and release history tracking.
 
 Kubernetes is future `v2.0.0` roadmap scope only and is not part of this architecture.
 
 ## Design Goals
 
-- make releases repeatable instead of manual
-- keep the currently healthy version serving traffic while a candidate starts
-- promote only after health checks pass
+- support many application stacks through configuration rather than application-specific scripts
+- deploy one or more services to Linux VMs with the same release mechanics
+- keep the currently healthy color serving traffic while candidates start on the inactive color
+- promote only after service health checks and NGINX validation pass
 - make rollback faster than debugging during an incident
-- support more than one service without duplicating the whole deployment system
-- keep operational state clear enough for humans to inspect
+- preserve release history for audits, incident review, and operator confidence
+- keep the repository structure clear enough for contributors and recruiters to evaluate quickly
 
-## High-Level Flow
+## Final Repository Tree
 
-```mermaid
-sequenceDiagram
-    participant Git as Source Repository
-    participant Jenkins as Jenkins Pipeline
-    participant VM as Linux VM
-    participant Docker as Docker Runtime
-    participant NGINX as NGINX
-    participant State as Release State
+The complete `v1.0.0` repository should use this structure. Files marked as scripts are design targets only until implementation begins.
 
-    Git->>Jenkins: Commit, tag, or manual release trigger
-    Jenkins->>Jenkins: Validate inputs and environment
-    Jenkins->>Docker: Build or pull immutable image tag
-    Jenkins->>VM: Deploy candidate to inactive color
-    Jenkins->>Docker: Start candidate service container
-    Jenkins->>Docker: Run service health checks
-    Jenkins->>NGINX: Switch upstream after validation
-    Jenkins->>State: Record active color, version, and result
+```text
+.
+├── README.md
+├── CHANGELOG.md
+├── LICENSE
+├── .editorconfig
+├── .env.example
+├── .gitignore
+├── Jenkinsfile
+├── config/
+│   ├── README.md
+│   ├── environments/
+│   │   ├── development.yml
+│   │   ├── staging.yml
+│   │   └── production.yml
+│   ├── services.yml
+│   └── nginx/
+│       ├── nginx.conf.tpl
+│       └── upstream.conf.tpl
+├── docs/
+│   ├── AI_AGENT_USAGE.md
+│   ├── ARCHITECTURE.md
+│   ├── CONFIGURATION.md
+│   ├── CONTRIBUTING.md
+│   ├── HEALTH_CHECK.md
+│   ├── MVP.md
+│   ├── OPERATIONS.md
+│   ├── PRE_RELEASE_PLAN.md
+│   ├── REAL_WORLD_PROBLEMS.md
+│   ├── RELEASE_PLAN.md
+│   ├── RELEASE_SCOPE.md
+│   └── ROADMAP.md
+├── examples/
+│   ├── three-services/
+│   │   ├── services.yml
+│   │   └── production.yml
+│   └── single-service/
+│       ├── services.yml
+│       └── staging.yml
+├── scripts/
+│   ├── common/
+│   │   ├── colors.sh
+│   │   ├── config.sh
+│   │   ├── docker.sh
+│   │   ├── logging.sh
+│   │   ├── nginx.sh
+│   │   └── state.sh
+│   ├── deploy.sh
+│   ├── generate-nginx.sh
+│   ├── health-check.sh
+│   ├── init-host.sh
+│   ├── list-releases.sh
+│   ├── rollback.sh
+│   ├── smoke-test.sh
+│   ├── switch-traffic.sh
+│   └── validate-config.sh
+└── tests/
+    ├── fixtures/
+    │   ├── services.valid.yml
+    │   └── services.invalid.yml
+    ├── test-config-validation.sh
+    ├── test-nginx-generation.sh
+    └── test-state-transitions.sh
 ```
 
-## Core Components
+The current repository may contain early scaffold files such as `demo-app/` or single-service examples. For `v1.0.0`, those should be treated as examples, not as the core deployment model.
 
-### Jenkins
+## Configuration Format
 
-Jenkins is the release orchestrator. It should coordinate checkout, build or image selection, environment validation, deployment, health checks, NGINX switching, release-state updates, and rollback actions.
+The v1 configuration should be YAML, split between service registration and environment-specific deployment settings.
 
-The pipeline must treat deployment success as more than a green build. A release is successful only when the candidate is deployed, validated, promoted, and recorded.
+`config/services.yml` defines application-agnostic service metadata:
 
-### Linux VM
+```yaml
+version: 1
+services:
+  - name: api
+    image: registry.example.com/company/api
+    route:
+      host: example.com
+      path_prefix: /api
+    ports:
+      blue: 8101
+      green: 8102
+    health_check:
+      path: /health
+      expected_status: 200
+      timeout_seconds: 3
+      retries: 10
+      interval_seconds: 3
+    deploy:
+      start_order: 10
+      stop_grace_seconds: 20
+      environment_file: api.env
 
-The v1 target is a generic Linux VM. The template should avoid assumptions that only work on one cloud provider. Operators are expected to provide the VM, network access, Docker runtime, NGINX, deployment user permissions, and secret-management approach.
-
-### Docker
-
-Docker is the application packaging and runtime layer for v1. Images should be tagged immutably so operators can identify exactly what is running and roll back to a known release.
-
-### NGINX
-
-NGINX is the traffic boundary. It routes user traffic to the active blue or green slot. Promotion updates the NGINX upstream target and reloads or applies the change safely.
-
-### Release State
-
-Release state records what version is active, which color is live, which release was previously healthy, and whether the last deployment succeeded or rolled back. State should be simple enough to inspect during an incident.
-
-## Blue/Green Model
-
-Each service has two deployment slots:
-
-- `blue` - one runnable version of the service
-- `green` - the alternate runnable version of the service
-
-Only one slot receives production traffic. The inactive slot is used for the candidate release.
-
-```mermaid
-flowchart TB
-    U[Users] --> N[NGINX]
-    N --> A[Active Slot]
-    C[Candidate Slot] --> H[Health Check]
-    H -->|pass| S[Switch Traffic]
-    H -->|fail| K[Keep Current Active Slot]
+  - name: web
+    image: registry.example.com/company/web
+    route:
+      host: example.com
+      path_prefix: /
+    ports:
+      blue: 8201
+      green: 8202
+    health_check:
+      path: /healthz
+      expected_status: 200
+      timeout_seconds: 3
+      retries: 10
+      interval_seconds: 3
+    deploy:
+      start_order: 20
+      stop_grace_seconds: 20
+      environment_file: web.env
 ```
 
-## Multi-Service Deployment
+`config/environments/<environment>.yml` defines where and how the services run:
 
-`v1.0.0` should support multiple services without forcing every team to copy and edit separate deployment systems.
-
-The expected model:
-
-- define services in a structured configuration
-- deploy each service to its inactive color
-- run service-specific health checks
-- support dependency-aware ordering where needed
-- switch traffic only for services that pass their gates
-- record per-service release state
-- document rollback behavior when one service succeeds and another fails
-
-The template should be honest about distributed-system limits. Multi-service rollback can be constrained by shared data, backward compatibility, and inter-service API changes.
-
-## Health Checks
-
-Health checks are promotion gates, not observability replacements. A candidate service must expose a configured HTTP endpoint that proves the process is running and ready to receive traffic.
-
-Health-check behavior should define:
-
-- endpoint path
-- expected status code
-- timeout
-- retry count
-- failure behavior
-- post-switch verification
-
-## Rollback
-
-Rollback should prioritize restoring traffic to the last known healthy version.
-
-```mermaid
-flowchart LR
-    A[Failure Detected] --> B[Read Release State]
-    B --> C[Identify Previous Healthy Color]
-    C --> D[Switch NGINX Back]
-    D --> E[Run Health Check]
-    E --> F[Record Rollback Event]
+```yaml
+environment: production
+release_root: /opt/zero-downtime-cicd
+state_root: /opt/zero-downtime-cicd/state
+log_root: /opt/zero-downtime-cicd/logs
+deployment_user: deploy
+nginx:
+  config_dir: /etc/nginx/conf.d
+  generated_upstream_file: /etc/nginx/conf.d/zero-downtime-upstreams.conf
+  reload_command: sudo systemctl reload nginx
+  validate_command: sudo nginx -t
+docker:
+  network: zero-downtime
+  registry: registry.example.com
+release:
+  keep_history: 20
+  default_timeout_seconds: 300
 ```
 
-Rollback does not automatically solve every application problem. Database changes, irreversible side effects, incompatible APIs, and external dependencies must be handled by the application and release process.
+Configuration rules:
+
+- service names must be unique and stable
+- each service must define blue and green ports
+- health checks must be explicit per service
+- routes must be explicit so NGINX generation is deterministic
+- environment files may contain runtime values, but secrets must not be committed
+- image tags should be supplied by Jenkins at release time, not hardcoded as mutable `latest`
+
+## Service Registration Model
+
+A service is registered by adding an entry to `config/services.yml`. The deployment engine should not require service-specific scripts for normal operation.
+
+A registered service contains:
+
+- `name` - stable identifier used in containers, state, logs, and release history
+- `image` - repository path without assuming a specific application language
+- `route` - NGINX host and path mapping
+- `ports` - blue and green host ports
+- `health_check` - readiness gate before promotion
+- `deploy` - ordering, graceful stop behavior, and optional environment file reference
+
+Service registration should support partial deployments. Jenkins may deploy all services for a release or a selected subset, but state must always record exactly which services were included.
+
+## Deployment Workflow
+
+```mermaid
+flowchart TD
+    A[Release Trigger in Jenkins] --> B[Load Environment Config]
+    B --> C[Load Service Registry]
+    C --> D[Validate Config and Inputs]
+    D --> E[Resolve Image Tags]
+    E --> F[Read Current State]
+    F --> G[Determine Inactive Color Per Service]
+    G --> H[Create Release Record]
+    H --> I[Pull Images on VM]
+    I --> J[Start Candidate Containers]
+    J --> K[Run Service Health Checks]
+    K -->|fail| L[Mark Release Failed and Keep Current Traffic]
+    K -->|pass| M[Generate NGINX Upstream Config]
+    M --> N[Validate NGINX Config]
+    N -->|fail| L
+    N -->|pass| O[Switch Traffic]
+    O --> P[Post-Switch Health Checks]
+    P -->|fail| Q[Rollback Traffic]
+    P -->|pass| R[Mark Release Successful]
+    Q --> S[Mark Release Rolled Back]
+```
+
+Deployment guarantees are intentionally scoped. The template can avoid switching traffic to unhealthy candidates, but application compatibility, database safety, and external dependency behavior remain the responsibility of the application team.
+
+## Rollback Workflow
+
+```mermaid
+flowchart TD
+    A[Rollback Trigger] --> B[Load Environment Config]
+    B --> C[Read Active State]
+    C --> D[Select Rollback Target]
+    D --> E[Verify Previous Color Exists]
+    E --> F[Generate NGINX Config for Previous Color]
+    F --> G[Validate NGINX Config]
+    G -->|fail| H[Stop and Preserve Current State]
+    G -->|pass| I[Switch NGINX Traffic Back]
+    I --> J[Run Health Checks on Restored Services]
+    J -->|fail| K[Mark Rollback Failed and Escalate]
+    J -->|pass| L[Record Rollback Event]
+    L --> M[Keep Failed Release for Inspection]
+```
+
+Rollback should restore traffic first and clean up later. Failed candidates and logs should remain available until an operator has captured enough context for troubleshooting.
+
+## State Management Design
+
+State must be file-based, inspectable, and safe to update from Jenkins on a Linux VM. JSON is preferred for machine state because scripts can parse and validate it predictably.
+
+Planned state layout on the target VM:
+
+```text
+/opt/zero-downtime-cicd/state/
+├── active.json
+├── lock
+├── services/
+│   ├── api.json
+│   ├── worker.json
+│   └── web.json
+└── history/
+    ├── 2026-06-19T101500Z_release-001.json
+    └── 2026-06-19T113000Z_release-002.json
+```
+
+`active.json` records the current environment-wide view:
+
+```json
+{
+  "environment": "production",
+  "active_release_id": "2026-06-19T101500Z_release-001",
+  "updated_at": "2026-06-19T10:16:12Z",
+  "services": {
+    "api": {
+      "active_color": "green",
+      "active_version": "api:1.4.2",
+      "previous_color": "blue",
+      "previous_version": "api:1.4.1"
+    },
+    "web": {
+      "active_color": "green",
+      "active_version": "web:2.8.0",
+      "previous_color": "blue",
+      "previous_version": "web:2.7.9"
+    }
+  }
+}
+```
+
+Each history file records:
+
+- release id
+- environment
+- Jenkins build URL or build number
+- operator or triggering user
+- service list
+- image tags
+- previous and candidate colors
+- health-check results
+- NGINX validation result
+- traffic switch result
+- final status: `succeeded`, `failed`, `rolled_back`, or `rollback_failed`
+- timestamps for each major stage
+
+State update rules:
+
+- acquire a lock before modifying state
+- write new state to a temporary file first
+- validate JSON before replacing active state
+- update service state only after traffic switch and post-switch verification pass
+- never delete history as part of rollback
+- retain failed release records for incident review
+
+## NGINX Generation Strategy
+
+NGINX configuration should be generated from `config/services.yml`, environment settings, and current or candidate color selection. Operators should not manually edit generated upstream files during normal deployment.
+
+The strategy:
+
+1. Render an upstream block per service using the selected color port.
+2. Render route rules from each service's `host` and `path_prefix`.
+3. Write generated config to a temporary file.
+4. Run `nginx -t` or the configured validation command.
+5. Atomically move the generated file into the configured NGINX include path.
+6. Reload NGINX with the configured reload command.
+7. Run post-switch health checks through the public route where possible.
+
+Template inputs:
+
+- service name
+- route host
+- route path prefix
+- active or candidate color
+- host port for selected color
+- proxy timeout defaults
+- optional service-specific headers
+
+Generated files should include a warning comment such as `# Generated by zero-downtime-cicd-template. Do not edit directly.`
 
 ## Release Directory Structure
 
-The planned v1 release layout should keep deployed assets and state predictable. A representative structure is:
+The target VM should use a predictable release layout:
 
 ```text
 /opt/zero-downtime-cicd/
+├── config/
+│   ├── environments/
+│   ├── services.yml
+│   └── runtime-env/
+│       ├── api.env
+│       ├── worker.env
+│       └── web.env
 ├── releases/
 │   └── <service-name>/
 │       ├── blue/
+│       │   ├── image.txt
+│       │   ├── container.id
+│       │   └── deployed_at
 │       └── green/
+│           ├── image.txt
+│           ├── container.id
+│           └── deployed_at
 ├── state/
 │   ├── active.json
-│   └── history/
-├── config/
+│   ├── lock
 │   ├── services/
-│   └── environments/
+│   └── history/
 └── logs/
+    ├── deploy/
+    ├── health-check/
+    ├── nginx/
+    └── rollback/
 ```
 
-The exact implementation may evolve, but documentation and scripts should keep release paths explicit.
+The repository should document this layout, but scripts should create missing directories during host initialization.
 
-## Environment Separation
+## Example Configuration for Three Services
 
-Development, staging, and production should use the same deployment mechanics with different configuration values.
+```yaml
+version: 1
+services:
+  - name: api
+    image: registry.example.com/acme/api
+    route:
+      host: app.example.com
+      path_prefix: /api
+    ports:
+      blue: 8101
+      green: 8102
+    health_check:
+      path: /health
+      expected_status: 200
+      timeout_seconds: 3
+      retries: 12
+      interval_seconds: 5
+    deploy:
+      start_order: 10
+      stop_grace_seconds: 30
+      environment_file: api.env
 
-Environment-specific values may include:
+  - name: worker
+    image: registry.example.com/acme/worker
+    route:
+      host: internal.example.com
+      path_prefix: /worker-health
+    ports:
+      blue: 8301
+      green: 8302
+    health_check:
+      path: /health
+      expected_status: 200
+      timeout_seconds: 3
+      retries: 12
+      interval_seconds: 5
+    deploy:
+      start_order: 20
+      stop_grace_seconds: 45
+      environment_file: worker.env
 
-- VM hostnames
-- deployment user
-- service ports
-- health-check paths
-- image registry and tags
-- NGINX upstream paths
-- release state location
-- approval requirements
-- secret references
+  - name: web
+    image: registry.example.com/acme/web
+    route:
+      host: app.example.com
+      path_prefix: /
+    ports:
+      blue: 8201
+      green: 8202
+    health_check:
+      path: /healthz
+      expected_status: 200
+      timeout_seconds: 3
+      retries: 10
+      interval_seconds: 3
+    deploy:
+      start_order: 30
+      stop_grace_seconds: 20
+      environment_file: web.env
+```
 
-Secrets must not be committed to the repository.
+Example image tags should be supplied at deployment time:
+
+```text
+api=registry.example.com/acme/api:1.4.2
+worker=registry.example.com/acme/worker:0.9.7
+web=registry.example.com/acme/web:2.8.0
+```
+
+## Required v1.0.0 Scripts
+
+These scripts are required for `v1.0.0`, but this document does not implement them.
+
+| Script | Responsibility |
+| --- | --- |
+| `scripts/init-host.sh` | Create target VM directories, validate required tools, and prepare Docker network assumptions. |
+| `scripts/validate-config.sh` | Validate service and environment YAML before deployment. |
+| `scripts/deploy.sh` | Orchestrate candidate deployment for one or more services. |
+| `scripts/health-check.sh` | Run HTTP health checks with timeout and retry behavior. |
+| `scripts/generate-nginx.sh` | Render NGINX config from service registration and selected colors. |
+| `scripts/switch-traffic.sh` | Validate, install, and reload generated NGINX config. |
+| `scripts/rollback.sh` | Restore traffic to the previous healthy color and record rollback state. |
+| `scripts/list-releases.sh` | Show active release, previous release, and history records. |
+| `scripts/smoke-test.sh` | Run optional post-switch checks against public routes. |
+| `scripts/common/config.sh` | Load and normalize configuration values. |
+| `scripts/common/colors.sh` | Resolve active and inactive colors per service. |
+| `scripts/common/docker.sh` | Wrap Docker operations used by deployment scripts. |
+| `scripts/common/nginx.sh` | Wrap NGINX validation, file installation, and reload behavior. |
+| `scripts/common/state.sh` | Read, lock, write, and validate release state. |
+| `scripts/common/logging.sh` | Provide consistent logs for Jenkins and operators. |
+
+## Jenkins Integration
+
+`Jenkinsfile` should call the scripts rather than embedding deployment logic directly. The planned stages are:
+
+1. checkout
+2. validate configuration
+3. resolve service image tags
+4. initialize or verify target host
+5. deploy inactive color
+6. run candidate health checks
+7. generate and validate NGINX config
+8. switch traffic
+9. run post-switch verification
+10. record release result
+11. expose rollback action
+
+Jenkins should capture release metadata including build URL, Git commit, target environment, service list, image tags, operator, and result.
 
 ## Future Architecture
 

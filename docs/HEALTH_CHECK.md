@@ -1,70 +1,41 @@
 # Health Check Validation
 
-The health-check script validates an HTTP endpoint before a deployment candidate is promoted.
+Health checks are the promotion gate for the planned `v1.0.0` VM-based blue/green deployment flow.
 
-In the v0.1.0 blue/green deployment flow, this script belongs after the idle environment has been started and before any traffic switching happens. It gives the deployment engine a focused pass/fail signal for whether the candidate environment is ready to serve traffic.
+The complete deployment and rollback design lives in [ARCHITECTURE.md](ARCHITECTURE.md). This document focuses only on health-check behavior.
 
-This feature only provides health validation. It does not deploy containers, switch NGINX traffic, or roll back releases.
+## v1 Role
 
-## Usage
+For each registered service, the deployment workflow should:
 
-Run the script with the health URL as the first argument:
+1. start the candidate container on the inactive color
+2. call the configured health endpoint on the candidate port
+3. retry according to the service configuration
+4. fail the deployment without switching traffic if the candidate does not become healthy
+5. run post-switch verification after NGINX traffic changes
 
-```bash
-./scripts/health-check.sh http://localhost:8001/health
+## Configuration Inputs
+
+Each service should define health-check settings in `config/services.yml`:
+
+```yaml
+health_check:
+  path: /health
+  expected_status: 200
+  timeout_seconds: 3
+  retries: 10
+  interval_seconds: 3
 ```
 
-If the URL returns HTTP `200`, the script treats the endpoint as healthy.
+## Expected Script Contract
 
-## Environment Overrides
+The v1 `scripts/health-check.sh` command should accept a fully resolved URL and return:
 
-The script retries before failing. Defaults are:
+- `0` when the endpoint returns the expected status within the retry policy
+- `1` when validation fails or usage is invalid
 
-- `MAX_RETRIES=10`
-- `RETRY_INTERVAL=3`
-
-Override them when calling the script:
-
-```bash
-MAX_RETRIES=5 RETRY_INTERVAL=2 ./scripts/health-check.sh http://localhost:8001/health
-```
-
-## Exit Codes
-
-- `0`: health check succeeded
-- `1`: health check failed or usage was invalid
-
-## Success Example
-
-When the endpoint is healthy:
-
-```bash
-./scripts/health-check.sh http://localhost:8001/health
-```
-
-Expected behavior:
-
-- prints the health URL
-- prints each attempt number
-- prints the HTTP status code
-- exits `0` after receiving HTTP `200`
-
-## Failure Example
-
-When the endpoint is unavailable:
-
-```bash
-MAX_RETRIES=2 RETRY_INTERVAL=1 ./scripts/health-check.sh http://localhost:9999/health
-```
-
-Expected behavior:
-
-- prints each failed attempt
-- prints the HTTP status code, usually `000` when no server responds
-- exits `1` after all retries are exhausted
+The deployment orchestrator should decide whether the health check is candidate validation or post-switch verification.
 
 ## Why This Matters
 
-Traffic should not switch to the idle environment just because a container started successfully.
-
-Health checks verify that the application can respond through its configured endpoint. Requiring a successful health check before promotion reduces the chance of sending users to a broken or still-starting release.
+Traffic should not switch to a candidate just because a container started successfully. Health checks verify that the service can respond through its configured readiness endpoint before users are sent to it.

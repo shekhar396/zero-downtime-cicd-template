@@ -1,34 +1,48 @@
 # Configuration
 
-This document describes the initial configuration model for the blue/green deployment workflow.
+This document summarizes the planned `v1.0.0` configuration model. The complete architecture, examples, and state design live in [ARCHITECTURE.md](ARCHITECTURE.md).
 
-The current configuration is intentionally small. It establishes the values future deployment engine components will read, but it does not implement deployment, rollback, or traffic switching behavior.
+## v1 Configuration Direction
 
-## Deployment State
+The stable VM template should use YAML configuration split into two responsibilities:
 
-Deployment state is represented by the `ACTIVE_ENV` value in `config/app.env.example`.
+- `config/services.yml` registers application services in an application-agnostic way.
+- `config/environments/<environment>.yml` defines VM, NGINX, Docker, state, and release settings for each environment.
 
-`ACTIVE_ENV` identifies which color is currently expected to receive traffic. The supported values are:
+Older single-service `.env` examples are useful as early scaffolding only. They should not be treated as the final `v1.0.0` configuration format.
 
-- `blue`
-- `green`
+## Service Configuration
 
-The idle environment is the opposite color. If blue is active, green is idle. If green is active, blue is idle.
+Each service entry should define:
 
-## Future Script Usage
+- stable service name
+- image repository
+- NGINX host and path route
+- blue and green ports
+- health-check path, expected status, timeout, retry count, and interval
+- deployment order and graceful stop behavior
+- optional runtime environment file reference
 
-Future deployment scripts will use `ACTIVE_ENV` to decide which environment should receive the next candidate release.
+Service-specific deployment scripts should not be required for normal operation. A service should be onboarded by registration and configuration.
 
-For example, when `ACTIVE_ENV=blue`, the deployment engine can treat green as idle, deploy the new application version there, validate it, and only then promote green. After a successful promotion, the recorded active environment can change to `green`.
+## Environment Configuration
 
-## Separate Ports
+Each environment should define:
 
-The blue and green environments use separate host ports so both versions can run at the same time on a single server.
+- release root
+- state root
+- log root
+- deployment user
+- Docker network and registry assumptions
+- NGINX generated config path
+- NGINX validation and reload commands
+- release history retention
+- default deployment timeout
 
-This separation allows the idle environment to be started and tested without interrupting the active environment. It also gives NGINX a clear target when traffic switching is added later.
+## Runtime Values and Secrets
 
-## Health Checks
+Runtime environment files may be referenced from service configuration, but secrets must not be committed to this repository. Operators should provide secrets through their approved secret-management process.
 
-Health checks are required before promotion because a running container is not enough evidence that the application is ready to serve traffic.
+## State Is Not Configuration
 
-Future deployment scripts should call the configured `HEALTH_ENDPOINT` on the idle environment and promote that environment only after the health check succeeds.
+The active color should not be stored as a hand-edited configuration value in v1. Active color, previous color, active image, previous image, release status, and history belong in generated state files under the target VM state directory.
