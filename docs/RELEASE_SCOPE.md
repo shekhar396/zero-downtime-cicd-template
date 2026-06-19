@@ -19,7 +19,8 @@ It should help teams deploy containerized services to generic Linux VMs using Je
 - immutable image tagging guidance
 - multi-service blue/green deployment support
 - NGINX config generation and validation before traffic switching
-- NGINX traffic switching from generated config
+- controlled single-service NGINX traffic switching from generated config
+- dry-run traffic switch validation
 - HTTP health-check gates before promotion
 - post-switch verification
 - rollback to the last known healthy release

@@ -133,6 +133,50 @@ Future production install path recommendation:
 /etc/nginx/conf.d/zero-downtime/<service>.conf
 ```
 
+## Controlled Traffic Switching
+
+Phase 7 switches one service to a target color after health and NGINX validation gates pass.
+
+Dry-run first:
+
+```bash
+./scripts/switch-traffic.sh billing-api green --dry-run
+make switch-traffic-dry-run SERVICE=billing-api COLOR=green
+```
+
+Live switch:
+
+```bash
+./scripts/switch-traffic.sh billing-api green
+make switch-traffic SERVICE=billing-api COLOR=green
+```
+
+Default install path is local and safe:
+
+```text
+./build/nginx-installed
+```
+
+Override the install path only when intentionally preparing an operational host:
+
+```bash
+NGINX_INSTALL_DIR=/etc/nginx/conf.d/zero-downtime ./scripts/switch-traffic.sh billing-api green
+```
+
+Default reload command:
+
+```bash
+nginx -s reload
+```
+
+Override example:
+
+```bash
+NGINX_RELOAD_CMD="sudo systemctl reload nginx" ./scripts/switch-traffic.sh billing-api green
+```
+
+`active_color` is updated only after NGINX validation and reload succeed. If target container validation, health checks, config validation, or reload fails, the previous active color remains unchanged. The old color is not stopped automatically.
+
 ## Pre-Deployment Checklist
 
 Before a release, confirm:

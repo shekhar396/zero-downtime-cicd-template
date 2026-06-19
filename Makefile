@@ -1,4 +1,4 @@
-.PHONY: validate-config init-service show-state health create-release list-releases start-color stop-color status-color generate-nginx validate-nginx
+.PHONY: validate-config init-service show-state health create-release list-releases start-color stop-color status-color generate-nginx validate-nginx switch-traffic switch-traffic-dry-run
 
 validate-config:
 	./scripts/validate-config.sh
@@ -66,3 +66,18 @@ generate-nginx:
 
 validate-nginx:
 	./scripts/validate-nginx.sh ./build/nginx
+
+
+switch-traffic:
+	@if [ -z "$(SERVICE)" ] || [ -z "$(COLOR)" ]; then \
+		echo "Usage: make switch-traffic SERVICE=<service_name> COLOR=<blue|green>"; \
+		exit 1; \
+	fi
+	./scripts/switch-traffic.sh "$(SERVICE)" "$(COLOR)"
+
+switch-traffic-dry-run:
+	@if [ -z "$(SERVICE)" ] || [ -z "$(COLOR)" ]; then \
+		echo "Usage: make switch-traffic-dry-run SERVICE=<service_name> COLOR=<blue|green>"; \
+		exit 1; \
+	fi
+	./scripts/switch-traffic.sh "$(SERVICE)" "$(COLOR)" --dry-run

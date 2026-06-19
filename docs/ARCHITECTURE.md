@@ -499,6 +499,43 @@ Production install path recommendation for a future traffic-switch phase:
 
 Phase 6 does not write to that path, reload NGINX, switch traffic, update `active_color`, implement rollback, or call Jenkins.
 
+## Phase 7 Controlled Traffic Switching
+
+Phase 7 introduces controlled NGINX traffic switching for one service at a time.
+
+Switch workflow:
+
+1. validate `config/services.yml`
+2. confirm the service is registered
+3. confirm service state exists
+4. validate target color is `blue` or `green`
+5. confirm the target color container is running
+6. health-check the target color port
+7. generate an NGINX config using the target color port
+8. install the generated config into a safe configurable output path
+9. validate generated NGINX config before reload
+10. reload NGINX
+11. update `state/active_color` only after successful reload
+12. append a traffic switch history entry
+
+Default install path is safe and local:
+
+```text
+./build/nginx-installed
+```
+
+Production recommended install path for a future operational setup:
+
+```text
+/etc/nginx/conf.d/zero-downtime/<service>.conf
+```
+
+The default reload command is `nginx -s reload`. Operators can override it with `NGINX_RELOAD_CMD`, for example `NGINX_RELOAD_CMD="sudo systemctl reload nginx"`.
+
+Dry-run mode validates inputs, generates target-color config, shows the intended install path and reload command, and does not copy config, reload NGINX, or update `active_color`.
+
+The old color remains running until an operator explicitly stops it. Phase 7 does not implement rollback or Jenkins orchestration.
+
 ## Required v1.0.0 Scripts
 
 These scripts are required for `v1.0.0`, but this document does not implement them.
@@ -511,7 +548,7 @@ These scripts are required for `v1.0.0`, but this document does not implement th
 | `scripts/health-check.sh` | Run HTTP health checks with timeout and retry behavior. |
 | `scripts/generate-nginx.sh` | Render NGINX config into `build/nginx` from service registration and active color state. |
 | `scripts/validate-nginx.sh` | Validate generated NGINX config statically and with `nginx -t` when available. |
-| `scripts/switch-traffic.sh` | Validate, install, and reload generated NGINX config. |
+| `scripts/switch-traffic.sh` | Health-check a target color, install validated NGINX config, reload NGINX, and update active color after success. |
 | `scripts/rollback.sh` | Restore traffic to the previous healthy color and record rollback state. |
 | `scripts/list-releases.sh` | Show retained release artifacts and release metadata. |
 | `scripts/start-color.sh` | Start one service color container from an existing release artifact. |
