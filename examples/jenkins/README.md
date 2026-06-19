@@ -20,6 +20,21 @@ The Jenkins agent should have Bash, Make, Git, Docker for live runtime work, and
 - `DRY_RUN` - when true, run validation and deploy dry-run only
 - `AUTO_APPROVE` - bypass production manual approval only when intentionally enabled
 
+
+## Apache Production Overrides
+
+When Jenkins installs Apache config into a system directory, use non-interactive sudo command overrides and configure sudoers outside this repository:
+
+```bash
+APACHE_CONFIG_DIR=/etc/apache2/sites-available \
+APACHE_INSTALL_CMD="sudo -n cp" \
+APACHE_ENABLE_CMD="sudo -n a2ensite pico-photos-api.conf" \
+APACHE_RELOAD_CMD="sudo -n systemctl reload apache2" \
+./scripts/switch-traffic.sh pico-photos-api green
+```
+
+Do not hard-code service-specific values in shared Jenkinsfiles; pass them as job parameters or environment-specific settings.
+
 ## Rollback
 
 Rollback remains an explicit operator action:

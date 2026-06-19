@@ -183,6 +183,16 @@ The root `Jenkinsfile` provides a declarative pipeline with these parameters:
 
 The pipeline validates config, runs shell syntax checks, verifies the artifact path, runs deploy dry-run, requires manual approval for production unless explicitly bypassed, performs live deploy only when `DRY_RUN=false`, and prints rollback instructions on failure.
 
+For Apache production installs from Jenkins, use non-interactive sudo command overrides:
+
+```bash
+APACHE_CONFIG_DIR=/etc/apache2/sites-available \
+APACHE_INSTALL_CMD="sudo -n cp" \
+APACHE_ENABLE_CMD="sudo -n a2ensite pico-photos-api.conf" \
+APACHE_RELOAD_CMD="sudo -n systemctl reload apache2" \
+./scripts/switch-traffic.sh pico-photos-api green
+```
+
 Recommended branch flow:
 
 ```text

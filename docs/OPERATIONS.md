@@ -207,6 +207,18 @@ Override examples:
 NGINX_RELOAD_CMD="sudo systemctl reload nginx" ./scripts/switch-traffic.sh billing-api green
 APACHE_RELOAD_CMD="sudo systemctl reload apache2" ./scripts/switch-traffic.sh pico-photos-api green
 ```
+Jenkins production Apache example with non-interactive sudo:
+
+```bash
+APACHE_CONFIG_DIR=/etc/apache2/sites-available \
+APACHE_INSTALL_CMD="sudo -n cp" \
+APACHE_ENABLE_CMD="sudo -n a2ensite pico-photos-api.conf" \
+APACHE_RELOAD_CMD="sudo -n systemctl reload apache2" \
+./scripts/switch-traffic.sh pico-photos-api green
+```
+
+`APACHE_ENABLE_CMD` is optional. Leave it empty when the site is already enabled or when the install path is an included config directory.
+
 
 `active_color` is updated only after the configured proxy validation and reload succeed. If target container validation, health checks, config validation, or reload fails, the previous active color remains unchanged. The old color is not stopped automatically.
 

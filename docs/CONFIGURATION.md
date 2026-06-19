@@ -76,7 +76,7 @@ build/apache
 build/apache-installed
 ```
 
-Production Apache install path can be set with `APACHE_CONFIG_DIR`, for example `/etc/apache2/sites-available`. Reload can be overridden with `APACHE_RELOAD_CMD`, for example `APACHE_RELOAD_CMD="sudo systemctl reload apache2"`.
+Production Apache install path can be set with `APACHE_CONFIG_DIR`, for example `/etc/apache2/sites-available`. Apache installs can use `APACHE_INSTALL_CMD`, defaulting to `cp`; Jenkins can use `APACHE_INSTALL_CMD="sudo -n cp"`. Optional site enable can use `APACHE_ENABLE_CMD`, for example `APACHE_ENABLE_CMD="sudo -n a2ensite pico-photos-api.conf"`. Reload can be overridden with `APACHE_RELOAD_CMD`, for example `APACHE_RELOAD_CMD="sudo -n systemctl reload apache2"`.
 
 ## Systemd Runtime Fields
 

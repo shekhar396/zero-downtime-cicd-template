@@ -5,7 +5,7 @@ services:
     public_port: 80
     blue_port: 8860
     green_port: 8861
-    health_path: /api/v1/health/db
+    health_path: /api/v1/test
     deploy_path: /opt/apps/pico-photos-api
     nginx_server_name: _
     retention_count: 5

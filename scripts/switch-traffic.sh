@@ -7,6 +7,8 @@ NGINX_INSTALL_DIR="${NGINX_INSTALL_DIR:-$ROOT_DIR/build/nginx-installed}"
 NGINX_RELOAD_CMD="${NGINX_RELOAD_CMD:-nginx -s reload}"
 APACHE_CONFIG_DIR="${APACHE_CONFIG_DIR:-$ROOT_DIR/build/apache-installed}"
 APACHE_RELOAD_CMD="${APACHE_RELOAD_CMD:-apache2ctl graceful}"
+APACHE_INSTALL_CMD="${APACHE_INSTALL_CMD:-cp}"
+APACHE_ENABLE_CMD="${APACHE_ENABLE_CMD:-}"
 NGINX_SWITCH_BUILD_DIR="${NGINX_SWITCH_BUILD_DIR:-$ROOT_DIR/build/nginx-switch}"
 APACHE_SWITCH_BUILD_DIR="${APACHE_SWITCH_BUILD_DIR:-$ROOT_DIR/build/apache-switch}"
 dry_run="no"
@@ -179,6 +181,14 @@ echo "[switch-traffic] target_port=$target_port"
 echo "[switch-traffic] health_url=$health_url"
 echo "[switch-traffic] install_dir=$install_dir"
 echo "[switch-traffic] reload_cmd=$reload_cmd"
+if [[ "$proxy_runtime" == "apache" ]]; then
+  echo "[switch-traffic] apache_install_cmd=$APACHE_INSTALL_CMD"
+  if [[ -n "$APACHE_ENABLE_CMD" ]]; then
+    echo "[switch-traffic] apache_enable_cmd=$APACHE_ENABLE_CMD"
+  else
+    echo "[switch-traffic] apache_enable_cmd=<none>"
+  fi
+fi
 
 if [[ "$dry_run" == "yes" ]]; then
   echo "[switch-traffic] step=generate_${proxy_runtime}"
@@ -201,8 +211,17 @@ echo "[switch-traffic] generated=$generated_file"
 echo "[switch-traffic] step=install_generated_config"
 mkdir -p "$install_dir"
 installed_file="$install_dir/$service_name.conf"
-cp "$generated_file" "$installed_file"
+if [[ "$proxy_runtime" == "apache" ]]; then
+  bash -c "$APACHE_INSTALL_CMD \"\$1\" \"\$2\"" _ "$generated_file" "$installed_file"
+else
+  cp "$generated_file" "$installed_file"
+fi
 echo "[switch-traffic] installed=$installed_file"
+
+if [[ "$proxy_runtime" == "apache" && -n "$APACHE_ENABLE_CMD" ]]; then
+  echo "[switch-traffic] step=enable_apache_site"
+  bash -c "$APACHE_ENABLE_CMD"
+fi
 
 echo "[switch-traffic] step=validate_${proxy_runtime}"
 validate_proxy_dir "$proxy_runtime" "$install_dir"
