@@ -1,16 +1,17 @@
 # Release Plan
 
-This roadmap describes intended releases. Dates are intentionally omitted until implementation capacity and validation environments are available.
+This document describes practical release increments leading to the stable `v1.0.0` Linux VM template. For the authoritative scope boundary, see [RELEASE_SCOPE.md](RELEASE_SCOPE.md). Dates are intentionally omitted until implementation capacity and validation environments are available.
 
-## v0.1.0 - Single-Server Zero-Downtime MVP
+## v0.1.0 - Single-Service VM MVP
 
-**Objective:** Provide the first working template for single-server blue/green deployment behind NGINX.
+**Objective:** Prove the first working single-service blue/green deployment flow behind NGINX on a Linux VM.
 
 **Planned features:**
 
 - Jenkins pipeline skeleton and documented stages.
-- Docker image build and immutable tagging conventions.
-- Blue/green deployment scripts.
+- Docker image build or pull workflow.
+- Immutable tagging conventions.
+- Blue/green deployment scripts for one service.
 - NGINX traffic switch mechanism.
 - Health-check validation gate.
 - Basic rollback flow.
@@ -21,11 +22,29 @@ This roadmap describes intended releases. Dates are intentionally omitted until 
 - Staging deployment can switch from blue to green without intentional downtime.
 - Failed health checks prevent promotion.
 - Rollback behavior is documented and tested in a controlled environment.
-- README and MVP documentation match the implemented behavior.
+- README, MVP documentation, and implementation agree.
 
-## v0.2.0 - Deployment Governance
+## v0.2.0 - Release State and Safety
 
-**Objective:** Add release controls that improve ownership, reviewability, and audit discipline.
+**Objective:** Make deployment outcomes inspectable and rollback behavior predictable.
+
+**Planned features:**
+
+- Release state file or directory layout.
+- Previous healthy version tracking.
+- Safer failure handling for missing configuration.
+- Post-switch verification.
+- Failure-mode documentation.
+
+**Release criteria:**
+
+- Operators can identify active color, previous color, version, and last result.
+- Failed candidate and failed post-switch scenarios are documented.
+- Rollback behavior is testable from recorded state.
+
+## v0.3.0 - Governance and Operator Docs
+
+**Objective:** Add release controls that improve ownership, reviewability, and operational discipline.
 
 **Planned features:**
 
@@ -34,48 +53,15 @@ This roadmap describes intended releases. Dates are intentionally omitted until 
 - PR and tag expectations for releases.
 - Release checklist.
 - Ownership documentation.
+- Initial troubleshooting runbook.
 
 **Release criteria:**
 
 - Release process identifies operator, approver, version, environment, and rollback plan.
-- Governance docs are clear enough for maintainers to enforce consistently.
+- Operator documentation is clear enough for someone who did not author the scripts.
 - No production-readiness claim is made beyond validated scope.
 
-## v0.3.0 - Observability and Deployment Metrics
-
-**Objective:** Improve visibility into deployment outcomes and operational health.
-
-**Planned features:**
-
-- Deployment event logging guidance.
-- Metrics for deployment duration, success, rollback, and failure reason.
-- Health-check and post-switch verification reporting.
-- Observability integration examples.
-
-**Release criteria:**
-
-- Template documents minimum useful deployment metrics.
-- Example metrics can be collected in a controlled environment.
-- Failure states are visible enough to support incident review.
-
-## v0.4.0 - Canary and Smoke Testing
-
-**Objective:** Add safer validation patterns before or immediately after traffic promotion.
-
-**Planned features:**
-
-- Smoke-test stage design.
-- Optional canary-style validation notes.
-- Post-switch verification checks.
-- Failure handling guidance for partial validation.
-
-**Release criteria:**
-
-- Smoke checks are documented and testable.
-- Canary limitations are clearly stated for single-server environments.
-- Failed smoke tests produce a defined rollback or hold decision.
-
-## v0.5.0 - Multi-Service Deployment Support
+## v0.4.0 - Multi-Service Model
 
 **Objective:** Extend the template model to support related services while preserving safety gates.
 
@@ -84,7 +70,8 @@ This roadmap describes intended releases. Dates are intentionally omitted until 
 - Multi-service configuration structure.
 - Service dependency ordering guidance.
 - Coordinated health checks.
-- Release-state model for multiple services.
+- Per-service release state model.
+- Documentation for partial failure and rollback constraints.
 
 **Release criteria:**
 
@@ -92,22 +79,46 @@ This roadmap describes intended releases. Dates are intentionally omitted until 
 - Dependency risks and rollback constraints are documented.
 - Single-service use remains understandable.
 
-## v1.0.0 - Stable Production-Ready Template
+## v0.5.0 - Hardening and Validation
 
-**Objective:** Publish a stable template with tested deployment behavior and clear support boundaries.
+**Objective:** Prepare the VM template for stable release review.
 
 **Planned features:**
 
 - Hardened scripts and pipeline definitions.
-- Complete operator documentation.
-- Tested rollback and failure scenarios.
-- Versioned examples.
+- Fresh setup validation from documentation.
 - Security and secret-handling review.
+- Deployment logging guidance.
+- Representative staging tests.
+
+**Release criteria:**
+
+- Setup, deploy, rollback, and troubleshoot docs are accurate.
+- Known limitations are documented.
+- Maintainers can identify remaining blockers for `v1.0.0`.
+
+## v1.0.0 - Stable Linux VM Template
+
+**Objective:** Publish a stable VM-based zero-downtime CI/CD template with clear support boundaries.
+
+**Required capabilities:**
+
+- Generic Linux VM deployment.
+- Jenkins pipeline integration.
+- Multi-service blue/green support.
+- NGINX traffic switching.
+- Health-check gates and post-switch verification.
+- Rollback to the last known healthy release.
+- Release directory structure and state tracking.
+- Complete operational documentation.
 
 **Release criteria:**
 
 - Deployment and rollback paths are tested in representative environments.
 - Documentation accurately reflects behavior and limitations.
-- Known risks are documented.
-- Maintainers agree the template is stable for its stated scope.
+- Known risks are visible in README and release scope docs.
+- Maintainers agree the template is stable for the stated VM scope.
 
+## Future v2.0.0 Direction
+
+`v2.0.0` is reserved for a Kubernetes-native version using Kubernetes, Helm, rolling and blue/green strategy, and cloud-native deployment workflow. Kubernetes implementation files do not belong in the v1 release plan.
