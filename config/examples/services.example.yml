@@ -1,0 +1,28 @@
+# Example service registry for a three-service VM deployment.
+services:
+  - service_name: billing-api
+    runtime: container
+    public_port: 8080
+    blue_port: 18080
+    green_port: 18081
+    health_path: /health
+    deploy_path: /opt/zero-downtime-cicd/releases/billing-api
+    nginx_server_name: billing.example.com
+
+  - service_name: photo-api
+    runtime: container
+    public_port: 8081
+    blue_port: 18082
+    green_port: 18083
+    health_path: /health
+    deploy_path: /opt/zero-downtime-cicd/releases/photo-api
+    nginx_server_name: photos.example.com
+
+  - service_name: drive-api
+    runtime: container
+    public_port: 8082
+    blue_port: 18084
+    green_port: 18085
+    health_path: /health
+    deploy_path: /opt/zero-downtime-cicd/releases/drive-api
+    nginx_server_name: drive.example.com

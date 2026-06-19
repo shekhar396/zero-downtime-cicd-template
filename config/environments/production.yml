@@ -1,0 +1,8 @@
+# Production VM settings for the v1.0.0 template.
+environment: production
+release_root: /opt/zero-downtime-cicd
+state_root: /opt/zero-downtime-cicd/state
+log_root: /opt/zero-downtime-cicd/logs
+deployment_user: deploy
+docker_network: zero-downtime-production
+release_history_limit: 50

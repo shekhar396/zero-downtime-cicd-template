@@ -1,0 +1,8 @@
+# Staging VM settings for validating releases before production.
+environment: staging
+release_root: /opt/zero-downtime-cicd
+state_root: /opt/zero-downtime-cicd/state
+log_root: /opt/zero-downtime-cicd/logs
+deployment_user: deploy
+docker_network: zero-downtime-staging
+release_history_limit: 20

@@ -1,48 +1,136 @@
 # Configuration
 
-This document summarizes the planned `v1.0.0` configuration model. The complete architecture, examples, and state design live in [ARCHITECTURE.md](ARCHITECTURE.md).
+This document describes the Phase 1 configuration foundation for the planned `v1.0.0` Linux VM deployment template. It does not define deployment, rollback, NGINX generation, or Jenkins pipeline logic.
 
-## v1 Configuration Direction
+## Configuration Structure
 
-The stable VM template should use YAML configuration split into two responsibilities:
+```text
+config/
+├── services.yml
+├── environments/
+│   ├── staging.yml
+│   └── production.yml
+└── examples/
+    └── services.example.yml
+```
 
-- `config/services.yml` registers application services in an application-agnostic way.
-- `config/environments/<environment>.yml` defines VM, NGINX, Docker, state, and release settings for each environment.
+`config/services.yml` is the default service registry used by validation and future deployment phases.
 
-Older single-service `.env` examples are useful as early scaffolding only. They should not be treated as the final `v1.0.0` configuration format.
+`config/environments/*.yml` contains VM-oriented environment settings such as release roots, state roots, log roots, deployment user, Docker network name, and release history retention.
 
-## Service Configuration
+`config/examples/services.example.yml` shows the same service registration format in a safe example location.
 
-Each service entry should define:
+## Service Configuration Format
 
-- stable service name
-- image repository
-- NGINX host and path route
-- blue and green ports
-- health-check path, expected status, timeout, retry count, and interval
-- deployment order and graceful stop behavior
-- optional runtime environment file reference
+Each service is registered as a flat YAML object under `services`:
 
-Service-specific deployment scripts should not be required for normal operation. A service should be onboarded by registration and configuration.
+```yaml
+services:
+  - service_name: billing-api
+    runtime: container
+    public_port: 8080
+    blue_port: 18080
+    green_port: 18081
+    health_path: /health
+    deploy_path: /opt/zero-downtime-cicd/releases/billing-api
+    nginx_server_name: billing.example.com
+```
 
-## Environment Configuration
+Required fields:
 
-Each environment should define:
+- `service_name` - stable service identifier used by scripts and future release state
+- `runtime` - runtime category, currently `container` in the examples
+- `public_port` - externally exposed service port for the VM-level contract
+- `blue_port` - host port reserved for the blue deployment slot
+- `green_port` - host port reserved for the green deployment slot
+- `health_path` - HTTP path future health checks will call before promotion
+- `deploy_path` - absolute path where service release data will live on the VM
+- `nginx_server_name` - server name future NGINX configuration will target
 
-- release root
-- state root
-- log root
-- deployment user
-- Docker network and registry assumptions
-- NGINX generated config path
-- NGINX validation and reload commands
-- release history retention
-- default deployment timeout
+## Environment Override Strategy
 
-## Runtime Values and Secrets
+Environment files are intentionally separate from service registration:
 
-Runtime environment files may be referenced from service configuration, but secrets must not be committed to this repository. Operators should provide secrets through their approved secret-management process.
+```yaml
+environment: staging
+release_root: /opt/zero-downtime-cicd
+state_root: /opt/zero-downtime-cicd/state
+log_root: /opt/zero-downtime-cicd/logs
+deployment_user: deploy
+docker_network: zero-downtime-staging
+release_history_limit: 20
+```
 
-## State Is Not Configuration
+The intended strategy is:
 
-The active color should not be stored as a hand-edited configuration value in v1. Active color, previous color, active image, previous image, release status, and history belong in generated state files under the target VM state directory.
+- keep service identity and ports in `config/services.yml`
+- keep VM paths, state paths, deployment user, and environment-level settings in `config/environments/*.yml`
+- keep secrets out of this repository
+- keep active blue/green state out of static config; future phases should write state files instead
+
+## Service Discovery Utility
+
+`scripts/lib/service-discovery.sh` provides shell functions and a small CLI for future scripts.
+
+List registered services:
+
+```bash
+./scripts/lib/service-discovery.sh list
+```
+
+Retrieve one service definition:
+
+```bash
+./scripts/lib/service-discovery.sh get billing-api
+```
+
+Validate required fields only:
+
+```bash
+./scripts/lib/service-discovery.sh validate
+```
+
+Use a non-default service file:
+
+```bash
+./scripts/lib/service-discovery.sh list config/examples/services.example.yml
+```
+
+## Validation Process
+
+Run validation with Make:
+
+```bash
+make validate-config
+```
+
+Run validation directly:
+
+```bash
+./scripts/validate-config.sh
+```
+
+Validate an example file:
+
+```bash
+./scripts/validate-config.sh config/examples/services.example.yml
+```
+
+The validator checks:
+
+- all required fields are present
+- service names are unique
+- ports are unique across `public_port`, `blue_port`, and `green_port`
+- `blue_port` and `green_port` differ for each service
+- `health_path` begins with `/`
+- `deploy_path` is absolute
+
+## Example Services
+
+The default `config/services.yml` registers three realistic services:
+
+- `billing-api`
+- `photo-api`
+- `drive-api`
+
+These examples are Linux VM focused and intentionally stop at configuration. They do not deploy containers, switch traffic, generate NGINX files, call Jenkins, or perform rollback.
