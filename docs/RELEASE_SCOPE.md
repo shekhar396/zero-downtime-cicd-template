@@ -23,7 +23,8 @@ It should help teams deploy containerized services to generic Linux VMs using Je
 - dry-run traffic switch validation
 - HTTP health-check gates before promotion
 - post-switch verification
-- rollback to the last known healthy release
+- rollback to a retained successful release for one service
+- manual retained release rollback
 - release artifact directory management with metadata
 - release directory structure on target VMs
 - `current` symlink management for release artifacts

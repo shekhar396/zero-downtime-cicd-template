@@ -219,6 +219,39 @@ release_latest_successful_id() {
   ' "$history_file"
 }
 
+
+release_previous_successful_id() {
+  local service_name="$1"
+  local config_file="${2:-$SERVICE_CONFIG_FILE}"
+  local history_file current_id releases_dir candidate
+
+  history_file="$(state_history_file "$service_name" "$config_file")"
+  current_id="$(release_current_id "$service_name" "$config_file")"
+  releases_dir="$(state_service_releases_dir "$service_name" "$config_file")"
+
+  if [[ ! -s "$history_file" ]]; then
+    return 0
+  fi
+
+  tac "$history_file" | awk '
+    /status=success/ {
+      for (i = 1; i <= NF; i++) {
+        if ($i ~ /^release_id=/) {
+          sub(/^release_id=/, "", $i)
+          print $i
+        }
+      }
+    }
+  ' | while IFS= read -r candidate; do
+    [[ -z "$candidate" ]] && continue
+    [[ "$candidate" == "$current_id" ]] && continue
+    if [[ -d "$releases_dir/$candidate" ]]; then
+      printf '%s\n' "$candidate"
+      return 0
+    fi
+  done
+}
+
 release_list_ids() {
   local service_name="$1"
   local config_file="${2:-$SERVICE_CONFIG_FILE}"

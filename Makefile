@@ -1,4 +1,4 @@
-.PHONY: validate-config init-service show-state health create-release list-releases start-color stop-color status-color generate-nginx validate-nginx switch-traffic switch-traffic-dry-run
+.PHONY: validate-config init-service show-state health create-release list-releases start-color stop-color status-color generate-nginx validate-nginx switch-traffic switch-traffic-dry-run rollback rollback-dry-run
 
 validate-config:
 	./scripts/validate-config.sh
@@ -81,3 +81,26 @@ switch-traffic-dry-run:
 		exit 1; \
 	fi
 	./scripts/switch-traffic.sh "$(SERVICE)" "$(COLOR)" --dry-run
+
+
+rollback:
+	@if [ -z "$(SERVICE)" ]; then \
+		echo "Usage: make rollback SERVICE=<service_name> [RELEASE=<release_id>]"; \
+		exit 1; \
+	fi
+	@if [ -n "$(RELEASE)" ]; then \
+		./scripts/rollback.sh "$(SERVICE)" --release "$(RELEASE)"; \
+	else \
+		./scripts/rollback.sh "$(SERVICE)"; \
+	fi
+
+rollback-dry-run:
+	@if [ -z "$(SERVICE)" ]; then \
+		echo "Usage: make rollback-dry-run SERVICE=<service_name> [RELEASE=<release_id>]"; \
+		exit 1; \
+	fi
+	@if [ -n "$(RELEASE)" ]; then \
+		./scripts/rollback.sh "$(SERVICE)" --release "$(RELEASE)" --dry-run; \
+	else \
+		./scripts/rollback.sh "$(SERVICE)" --dry-run; \
+	fi

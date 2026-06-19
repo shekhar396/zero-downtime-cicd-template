@@ -536,6 +536,28 @@ Dry-run mode validates inputs, generates target-color config, shows the intended
 
 The old color remains running until an operator explicitly stops it. Phase 7 does not implement rollback or Jenkins orchestration.
 
+## Phase 8 Rollback Support
+
+Phase 8 adds one-service rollback orchestration.
+
+Rollback workflow:
+
+1. validate service configuration
+2. confirm service state exists
+3. read current `active_color`
+4. choose the inactive color as rollback target
+5. select a rollback release
+6. start the rollback release on the inactive color
+7. health-check the inactive color port
+8. switch traffic to the inactive color with `switch-traffic.sh`
+9. append rollback history
+
+Default rollback selection uses the previous retained successful release from `state/history.log`, excluding the current release symlink. Operators can choose a retained release manually with `--release <release_id>`.
+
+Rollback does not delete release artifacts and does not stop the old active color automatically. Retention limits still apply, so only retained release directories can be selected.
+
+Dry-run mode prints the selected release, target color, candidate port, release directory, and intended start/health/switch commands without starting containers, reloading NGINX, switching traffic, or updating `active_color`.
+
 ## Required v1.0.0 Scripts
 
 These scripts are required for `v1.0.0`, but this document does not implement them.
@@ -549,7 +571,7 @@ These scripts are required for `v1.0.0`, but this document does not implement th
 | `scripts/generate-nginx.sh` | Render NGINX config into `build/nginx` from service registration and active color state. |
 | `scripts/validate-nginx.sh` | Validate generated NGINX config statically and with `nginx -t` when available. |
 | `scripts/switch-traffic.sh` | Health-check a target color, install validated NGINX config, reload NGINX, and update active color after success. |
-| `scripts/rollback.sh` | Restore traffic to the previous healthy color and record rollback state. |
+| `scripts/rollback.sh` | Start a retained release on the inactive color, health-check it, switch traffic, and record rollback state. |
 | `scripts/list-releases.sh` | Show retained release artifacts and release metadata. |
 | `scripts/start-color.sh` | Start one service color container from an existing release artifact. |
 | `scripts/stop-color.sh` | Stop and remove only one named service color container. |

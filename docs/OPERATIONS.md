@@ -205,6 +205,39 @@ The planned deployment flow is:
 8. Post-switch verification confirms the active service is healthy.
 9. Release state records version, color, status, and timestamp.
 
+## Rollback Operation
+
+Dry-run the default rollback target:
+
+```bash
+./scripts/rollback.sh billing-api --dry-run
+make rollback-dry-run SERVICE=billing-api
+```
+
+Dry-run a manual retained release:
+
+```bash
+./scripts/rollback.sh billing-api --release <release_id> --dry-run
+make rollback-dry-run SERVICE=billing-api RELEASE=<release_id>
+```
+
+Run rollback:
+
+```bash
+./scripts/rollback.sh billing-api
+make rollback SERVICE=billing-api
+```
+
+Default rollback chooses the previous retained successful release from `state/history.log`. Manual rollback requires the release directory to exist under `releases/`.
+
+Failure behavior:
+
+- missing release fails before runtime changes
+- failed start fails before traffic switch
+- failed health check fails before traffic switch
+- failed switch keeps `active_color` unchanged
+- old color remains running until explicitly stopped
+
 ## Rollback Flow
 
 Rollback should restore the last known healthy release before deeper debugging.
