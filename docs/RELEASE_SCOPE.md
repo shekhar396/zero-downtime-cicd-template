@@ -15,6 +15,7 @@ It should help teams deploy containerized services to generic Linux VMs using Je
 - YAML configuration for services and environments
 - Jenkins pipeline integration through a repository `Jenkinsfile`
 - Docker image build or pull workflow
+- container runtime process management for blue/green service instances
 - immutable image tagging guidance
 - multi-service blue/green deployment support
 - NGINX traffic switching from generated config
@@ -79,7 +80,8 @@ These scripts are required for the v1 design but should be implemented only afte
 - secret-management platform implementation
 - full monitoring or tracing stack installation
 - application-specific deployment logic embedded in the core scripts
-- release artifact management that starts processes, switches traffic, or performs rollback
+- runtime support beyond `runtime: container` in the v1 foundation
+- release artifact management that switches traffic or performs rollback
 
 ## Stability Criteria
 

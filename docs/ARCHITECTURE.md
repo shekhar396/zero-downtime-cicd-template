@@ -438,6 +438,44 @@ Release validation depends on Phase 1 configuration and Phase 2 service state. I
 
 Future deployment phases should call release validation after starting the inactive color and before promotion.
 
+## Phase 5 Runtime Process Foundation
+
+Phase 5 introduces a runtime abstraction for managing blue/green service instances on Linux VMs.
+
+The v1 foundation supports only:
+
+```yaml
+runtime: container
+```
+
+Unsupported runtimes must fail clearly. The runtime layer uses Docker for container operations and follows this container naming convention:
+
+```text
+<service_name>-<color>
+```
+
+Examples:
+
+```text
+billing-api-blue
+billing-api-green
+```
+
+For the built-in mock artifact mode, a release containing `artifact/app.txt` can be started with a lightweight demo HTTP container. The container serves `/health` with HTTP `200` and `/` with service, color, release, and artifact metadata.
+
+Inactive color start flow:
+
+1. validate service configuration
+2. confirm service state is initialized
+3. confirm the release directory exists
+4. resolve the requested color port from `config/services.yml`
+5. start only `<service_name>-<color>`
+6. mount the release artifact directory read-only
+7. expose the selected blue/green port
+8. label the container with service, color, and release ID
+
+Phase 5 intentionally does not switch traffic. Starting a color only proves that a candidate process can run on its assigned port. Traffic switching belongs to a later NGINX phase after health validation and operator-controlled promotion semantics are defined.
+
 ## Required v1.0.0 Scripts
 
 These scripts are required for `v1.0.0`, but this document does not implement them.
@@ -452,11 +490,15 @@ These scripts are required for `v1.0.0`, but this document does not implement th
 | `scripts/switch-traffic.sh` | Validate, install, and reload generated NGINX config. |
 | `scripts/rollback.sh` | Restore traffic to the previous healthy color and record rollback state. |
 | `scripts/list-releases.sh` | Show retained release artifacts and release metadata. |
+| `scripts/start-color.sh` | Start one service color container from an existing release artifact. |
+| `scripts/stop-color.sh` | Stop and remove only one named service color container. |
+| `scripts/status-color.sh` | Show existence, running state, mapped port, and release label for one service color. |
 | `scripts/smoke-test.sh` | Run optional post-switch checks against public routes. |
 | `scripts/lib/service-discovery.sh` | Read service registry entries. |
 | `scripts/lib/state.sh` | Read, lock, write, and inspect service state. |
 | `scripts/lib/health.sh` | Build health URLs and execute health validation. |
 | `scripts/lib/release.sh` | Create release IDs, release directories, metadata, symlinks, and retention cleanup. |
+| `scripts/lib/runtime.sh` | Resolve runtime settings and manage blue/green color containers. |
 
 ## Jenkins Integration
 

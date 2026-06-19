@@ -1,4 +1,4 @@
-.PHONY: validate-config init-service show-state health create-release list-releases
+.PHONY: validate-config init-service show-state health create-release list-releases start-color stop-color status-color
 
 validate-config:
 	./scripts/validate-config.sh
@@ -37,3 +37,25 @@ list-releases:
 		exit 1; \
 	fi
 	./scripts/list-releases.sh "$(SERVICE)"
+
+
+start-color:
+	@if [ -z "$(SERVICE)" ] || [ -z "$(COLOR)" ] || [ -z "$(RELEASE)" ]; then \
+		echo "Usage: make start-color SERVICE=<service_name> COLOR=<blue|green> RELEASE=<release_id>"; \
+		exit 1; \
+	fi
+	./scripts/start-color.sh "$(SERVICE)" "$(COLOR)" "$(RELEASE)"
+
+stop-color:
+	@if [ -z "$(SERVICE)" ] || [ -z "$(COLOR)" ]; then \
+		echo "Usage: make stop-color SERVICE=<service_name> COLOR=<blue|green>"; \
+		exit 1; \
+	fi
+	./scripts/stop-color.sh "$(SERVICE)" "$(COLOR)"
+
+status-color:
+	@if [ -z "$(SERVICE)" ] || [ -z "$(COLOR)" ]; then \
+		echo "Usage: make status-color SERVICE=<service_name> COLOR=<blue|green>"; \
+		exit 1; \
+	fi
+	./scripts/status-color.sh "$(SERVICE)" "$(COLOR)"

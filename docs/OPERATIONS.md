@@ -70,6 +70,41 @@ Production VM configurations should use a durable application path such as `/opt
 
 Retention defaults to `5` releases per service. Operators may set `retention_count` in `config/services.yml`. Values greater than `10` warn because release artifacts can consume disk quickly. Cleanup never deletes the release pointed to by `current` or the latest successful release found in `state/history.log`.
 
+## Runtime Color Management
+
+Phase 5 can start, stop, and inspect one blue/green service color container.
+
+Start a color from an existing release artifact:
+
+```bash
+./scripts/start-color.sh billing-api green <release_id>
+make start-color SERVICE=billing-api COLOR=green RELEASE=<release_id>
+```
+
+Inspect a color:
+
+```bash
+./scripts/status-color.sh billing-api green
+make status-color SERVICE=billing-api COLOR=green
+```
+
+Stop only that color:
+
+```bash
+./scripts/stop-color.sh billing-api green
+make stop-color SERVICE=billing-api COLOR=green
+```
+
+Container names are deterministic:
+
+```text
+<service_name>-<color>
+```
+
+The runtime foundation supports only `runtime: container` and requires Docker on the Linux VM. The demo mode expects `artifact/app.txt` in the release directory and starts a small HTTP service that returns `200` on `/health`.
+
+Starting a color does not update `state/active_color`, stop the other color, switch NGINX traffic, run rollback, or call Jenkins. Operators should treat this phase as process startup validation only.
+
 ## Pre-Deployment Checklist
 
 Before a release, confirm:
