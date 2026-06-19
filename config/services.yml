@@ -1,32 +1,15 @@
-# Registered services for the v1.0.0 Linux VM deployment template.
-# This file is application-agnostic and contains no secrets.
 services:
-  - service_name: billing-api
-    runtime: container
-    public_port: 8080
-    blue_port: 18080
-    green_port: 18081
-    health_path: /health
-    deploy_path: /tmp/zero-downtime-cicd/services/billing-api
-    nginx_server_name: billing.example.com
+  - service_name: pico-photos-api
+    runtime: systemd
+    proxy_runtime: apache
+    public_port: 80
+    blue_port: 8860
+    green_port: 8861
+    health_path: /api/v1/health/db
+    deploy_path: /opt/apps/pico-photos-api
+    nginx_server_name: _
     retention_count: 5
-
-  - service_name: photo-api
-    runtime: container
-    public_port: 8081
-    blue_port: 18082
-    green_port: 18083
-    health_path: /health
-    deploy_path: /tmp/zero-downtime-cicd/services/photo-api
-    nginx_server_name: photos.example.com
-    retention_count: 5
-
-  - service_name: drive-api
-    runtime: container
-    public_port: 8082
-    blue_port: 18084
-    green_port: 18085
-    health_path: /health
-    deploy_path: /tmp/zero-downtime-cicd/services/drive-api
-    nginx_server_name: drive.example.com
-    retention_count: 5
+    start_command: sudo systemctl start pico-photos-api-{color}
+    stop_command: sudo systemctl stop pico-photos-api-{color}
+    status_command: sudo systemctl is-active pico-photos-api-{color}
+    env_file: /opt/apps/pico-photos-api/shared/.env

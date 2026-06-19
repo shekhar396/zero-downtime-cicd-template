@@ -6,7 +6,7 @@ This document is the authoritative scope boundary for the public roadmap.
 
 `v1.0.0` is the stable VM-based zero-downtime CI/CD template.
 
-It should help teams deploy services to generic Linux VMs using Jenkins, systemd or Docker runtime management, NGINX, health checks, release state, release history, and rollback.
+It should help teams deploy services to generic Linux VMs using Jenkins, systemd or Docker runtime management, NGINX or Apache, health checks, release state, release history, and rollback.
 
 ## v1.0.0 Must Include
 
@@ -20,8 +20,9 @@ It should help teams deploy services to generic Linux VMs using Jenkins, systemd
 - immutable image tagging guidance
 - multi-service blue/green deployment support
 - NGINX config generation and validation before traffic switching
+- Apache HTTPD reverse proxy config generation and validation before traffic switching
 - main one-service deployment orchestrator
-- controlled single-service NGINX traffic switching from generated config
+- controlled single-service proxy traffic switching from generated config
 - dry-run traffic switch validation
 - HTTP health-check gates before promotion
 - post-switch verification
@@ -44,6 +45,7 @@ The stable VM template should include these top-level areas:
 - `config/services.yml` for service registration
 - `config/environments/*.yml` for environment-specific VM settings
 - `nginx/templates/*.tpl` for NGINX template generation
+- `apache/templates/*.tpl` for Apache template generation
 - `scripts/` for deployment, health check, traffic switch, rollback, state, and validation commands
 - `docs/` for architecture, release scope, operations, configuration, health checks, contribution, and roadmap documentation
 - `examples/` for mock artifacts, local validation helpers, and Jenkins examples
@@ -92,6 +94,7 @@ These scripts provide the current v1 foundation and should continue to preserve 
 - application-specific deployment logic embedded in the core scripts
 - runtime support beyond `runtime: systemd` and `runtime: container` in the v1 foundation
 - generated NGINX config writes to `/etc/nginx` by default
+- generated Apache config writes to `/etc/apache2` by default
 
 ## Stability Criteria
 
@@ -101,8 +104,8 @@ Before `v1.0.0`, maintainers should be able to verify:
 - a sample service can be deployed to a Linux VM through the documented flow
 - three services can be registered and deployed through the same model
 - failed candidate health checks keep traffic on the active version
-- successful candidate validation switches NGINX traffic
-- generated NGINX config is validated before reload
+- successful candidate validation switches configured proxy traffic
+- generated NGINX or Apache config is validated before reload
 - rollback restores the previous healthy release
 - release history identifies who deployed what, when, and with which result
 - release state can be inspected during an incident

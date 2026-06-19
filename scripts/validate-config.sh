@@ -28,6 +28,7 @@ validate_services_file() {
     function reset_record() {
       service_name = ""
       runtime = ""
+      proxy_runtime = "nginx"
       public_port = ""
       blue_port = ""
       green_port = ""
@@ -77,6 +78,14 @@ validate_services_file() {
 
       if (runtime != "container" && runtime != "systemd") {
         printf "[validate-config] ERROR: runtime for %s must be container or systemd: %s\n", service_name, runtime > "/dev/stderr"
+        errors++
+      }
+
+      if (proxy_runtime == "") {
+        proxy_runtime = "nginx"
+      }
+      if (proxy_runtime != "nginx" && proxy_runtime != "apache") {
+        printf "[validate-config] ERROR: proxy_runtime for %s must be nginx or apache: %s\n", service_name, proxy_runtime > "/dev/stderr"
         errors++
       }
 
@@ -131,6 +140,7 @@ validate_services_file() {
       value = substr($0, length(key) + 2)
       if (key == "service_name") service_name = value
       else if (key == "runtime") runtime = value
+      else if (key == "proxy_runtime") proxy_runtime = value
       else if (key == "public_port") public_port = value
       else if (key == "blue_port") blue_port = value
       else if (key == "green_port") green_port = value

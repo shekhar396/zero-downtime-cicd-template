@@ -1,4 +1,4 @@
-.PHONY: help validate-config lint-shell init-service show-state health create-release list-releases start-color stop-color status-color generate-nginx validate-nginx switch-traffic switch-traffic-dry-run rollback rollback-dry-run deploy deploy-dry-run
+.PHONY: help validate-config lint-shell init-service show-state health create-release list-releases start-color stop-color status-color generate-nginx validate-nginx generate-apache validate-apache switch-traffic switch-traffic-dry-run rollback rollback-dry-run deploy deploy-dry-run
 
 help:
 	@echo "zero-downtime-cicd-template v1.0.0 commands"
@@ -24,6 +24,8 @@ help:
 	@echo "  make health URL=http://localhost:18081/health"
 	@echo "  make generate-nginx"
 	@echo "  make validate-nginx"
+	@echo "  make generate-apache"
+	@echo "  make validate-apache"
 	@echo "  make switch-traffic-dry-run SERVICE=billing-api COLOR=green"
 	@echo ""
 	@echo "Deploy and rollback:"
@@ -107,6 +109,12 @@ generate-nginx:
 
 validate-nginx:
 	./scripts/validate-nginx.sh ./build/nginx
+
+generate-apache:
+	./scripts/generate-apache.sh
+
+validate-apache:
+	./scripts/validate-apache.sh ./build/apache
 
 
 switch-traffic:

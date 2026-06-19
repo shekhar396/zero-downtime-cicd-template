@@ -1,6 +1,6 @@
 # Architecture
 
-This document describes the `v1.0.0` architecture for a generic Linux VM-based zero-downtime CI/CD template. It is intentionally application-agnostic and focused on Jenkins, Docker-compatible service images, NGINX traffic switching, blue/green deployment slots, rollback, and release history tracking.
+This document describes the `v1.0.0` architecture for a generic Linux VM-based zero-downtime CI/CD template. It is intentionally application-agnostic and focused on Jenkins, Docker-compatible service images, NGINX or Apache traffic switching, blue/green deployment slots, rollback, and release history tracking.
 
 Kubernetes is future `v2.0.0` roadmap scope only and is not part of this architecture.
 
@@ -9,14 +9,14 @@ Kubernetes is future `v2.0.0` roadmap scope only and is not part of this archite
 - support many application stacks through configuration rather than application-specific scripts
 - deploy one or more services to Linux VMs with the same release mechanics
 - keep the currently healthy color serving traffic while candidates start on the inactive color
-- promote only after service health checks and NGINX validation pass
+- promote only after service health checks and configured proxy validation pass
 - make rollback faster than debugging during an incident
 - preserve release history for audits, incident review, and operator confidence
 - keep the repository structure clear enough for contributors and recruiters to evaluate quickly
 
 ## Final Repository Tree
 
-The `v1.0.0` repository is organized around configuration, scripts, NGINX templates, Jenkins examples, and operator documentation.
+The `v1.0.0` repository is organized around configuration, scripts, NGINX and Apache templates, Jenkins examples, and operator documentation.
 
 ```text
 .
@@ -49,7 +49,7 @@ The `v1.0.0` repository is organized around configuration, scripts, NGINX templa
     ├── deploy.sh
     ├── rollback.sh
     ├── switch-traffic.sh
-    └── release, runtime, health, state, config, and NGINX commands
+    └── release, runtime, health, state, config, and NGINX and Apache commands
 ```
 
 ## Configuration Format
@@ -107,14 +107,15 @@ A registered service contains:
 
 - `service_name` - stable identifier used in containers, state, logs, and release history
 - `runtime` - v1 supports `systemd` and `container`
-- `public_port` - public NGINX listen port for the service
+- `public_port` - public proxy listen port for the service
 - `blue_port` and `green_port` - host ports for blue/green service instances
 - `health_path` - readiness endpoint used before promotion
 - `deploy_path` - filesystem root for releases, state, and shared files
-- `nginx_server_name` - generated NGINX server name
+- `nginx_server_name` - generated NGINX server name; Apache uses it as ServerName unless `_`, which maps to `localhost`
 - `retention_count` - retained release count, defaulting to `5` when omitted
 - `start_command`, `stop_command`, and `status_command` - required for `runtime: systemd`
 - `working_directory` and `env_file` - optional systemd runtime context fields
+- `proxy_runtime` - optional proxy selector, `nginx` by default or `apache` for Apache HTTPD
 
 Jenkins may deploy one service or iterate through multiple registered services, but each service keeps independent state and release history.
 
@@ -217,9 +218,9 @@ Inspect service state:
 make show-state SERVICE=billing-api
 ```
 
-## NGINX Generation Strategy
+## Proxy Generation Strategy
 
-NGINX configuration should be generated from `config/services.yml`, environment settings, and current or candidate color selection. Operators should not manually edit generated upstream files during normal deployment.
+NGINX or Apache configuration should be generated from `config/services.yml`, environment settings, and current or candidate color selection. Operators should not manually edit generated upstream files during normal deployment.
 
 The strategy:
 
@@ -227,8 +228,8 @@ The strategy:
 2. Render route rules from each service's `host` and `path_prefix`.
 3. Write generated config to a temporary file.
 4. Run `nginx -t` or the configured validation command.
-5. Atomically move the generated file into the configured NGINX include path.
-6. Reload NGINX with the configured reload command.
+5. Atomically move the generated file into the configured proxy include path.
+6. Reload the configured proxy with the configured reload command.
 7. Run post-switch health checks through the public route where possible.
 
 Template inputs:
@@ -384,9 +385,9 @@ Inactive color start flow:
 
 Starting a color does not switch traffic. It proves that a candidate process can run on its assigned port before health validation and operator-controlled promotion.
 
-## NGINX Generation Foundation
+## NGINX And Apache Generation Foundation
 
-NGINX generation creates config files from the service registry and current service state. Generated files are written to `build/nginx` by default so operators can review and validate them before any production install step.
+NGINX generation creates config files under `build/nginx`. Apache generation creates reverse proxy VirtualHost files under `build/apache`. Both read service registry and color state so operators can review and validate configs before any production install step.
 
 Generation reads:
 
@@ -397,7 +398,7 @@ Generation reads:
 - `active_color` from service state
 - blue or green upstream port based on `active_color`
 
-The generated service config includes one upstream pointing at the active color port, a server block listening on the configured public port, health path proxying, root path proxying, and common proxy headers.
+The generated NGINX config includes an upstream and server block. The generated Apache config includes `<VirtualHost *:80>`, `ProxyPass`, `ProxyPassReverse`, `ProxyPreserveHost`, and forwarded headers. Apache requires modules `proxy`, `proxy_http`, and `headers`.
 
 Production install path recommendation:
 
@@ -405,7 +406,7 @@ Production install path recommendation:
 /etc/nginx/conf.d/zero-downtime/<service>.conf
 ```
 
-NGINX generation alone does not write to that path, reload NGINX, switch traffic, update `active_color`, perform rollback, or call Jenkins.
+Proxy generation alone does not write to that path, reload the configured proxy, switch traffic, update `active_color`, perform rollback, or call Jenkins.
 
 ## Controlled Traffic Switching
 
@@ -419,10 +420,10 @@ Switch workflow:
 4. validate target color is `blue` or `green`
 5. confirm the target color container is running
 6. health-check the target color port
-7. generate an NGINX config using the target color port
+7. generate an NGINX or Apache config using the target color port
 8. install the generated config into a safe configurable output path
-9. validate generated NGINX config before reload
-10. reload NGINX
+9. validate generated proxy config before reload
+10. reload the configured proxy
 11. update `state/active_color` only after successful reload
 12. append a traffic switch history entry
 
@@ -438,9 +439,9 @@ Production recommended install path:
 /etc/nginx/conf.d/zero-downtime/<service>.conf
 ```
 
-The default reload command is `nginx -s reload`. Operators can override it with `NGINX_RELOAD_CMD`, for example `NGINX_RELOAD_CMD="sudo systemctl reload nginx"`.
+Default reload commands are `nginx -s reload` and `apache2ctl graceful`. Operators can override them with `NGINX_RELOAD_CMD` or `APACHE_RELOAD_CMD`, for example `APACHE_RELOAD_CMD="sudo systemctl reload apache2"`.
 
-Dry-run mode validates inputs, generates target-color config, shows the intended install path and reload command, and does not copy config, reload NGINX, or update `active_color`.
+Dry-run mode validates inputs, generates target-color config, shows the intended install path and reload command, and does not copy config, reload the configured proxy, or update `active_color`.
 
 The old color remains running until an operator explicitly stops it.
 
@@ -484,7 +485,7 @@ Deployment workflow:
 10. append deployment history
 11. leave the old active color running
 
-Dry-run prints the planned release creation, target color, target port, health URL, and intended switch command. It does not create a release, start a container, reload NGINX, switch traffic, update `active_color`, or clean up artifacts.
+Dry-run prints the planned release creation, target color, target port, health URL, and intended switch command. It does not create a release, start a container, reload the configured proxy, switch traffic, update `active_color`, or clean up artifacts.
 
 Failure safety: if release creation, target startup, health validation, or traffic switching fails, the previous active color remains unchanged. Failed release artifacts are retained for inspection.
 
@@ -506,11 +507,13 @@ The current v1.0.0 command surface is:
 | `scripts/status-color.sh` | Show existence, running state, mapped port, and release label for one service color. |
 | `scripts/generate-nginx.sh` | Render NGINX config into `build/nginx` from service registration and active color state. |
 | `scripts/validate-nginx.sh` | Validate generated NGINX config statically and with `nginx -t` when available. |
-| `scripts/switch-traffic.sh` | Health-check a target color, install validated NGINX config, reload NGINX, and update active color after success. |
+| `scripts/generate-apache.sh` | Render Apache reverse proxy config into `build/apache` from service registration and active color state. |
+| `scripts/validate-apache.sh` | Validate generated Apache config statically and with `apache2ctl -t` when available. |
+| `scripts/switch-traffic.sh` | Health-check a target color, install validated NGINX config, reload the configured proxy, and update active color after success. |
 | `scripts/rollback.sh` | Start a retained release on the inactive color, health-check it, switch traffic, and record rollback state. |
 | `scripts/deploy.sh` | Orchestrate one-service release creation, inactive color startup, health validation, and traffic switch. |
 
-Helper libraries live under `scripts/lib/` for service discovery, state, health, release, runtime, and NGINX behavior.
+Helper libraries live under `scripts/lib/` for service discovery, state, health, release, runtime, NGINX, and Apache behavior.
 
 ## Jenkins Integration
 

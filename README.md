@@ -1,20 +1,20 @@
 # Zero-Downtime CI/CD Template
 
-A practical Linux VM CI/CD template for blue/green deployments with systemd or Docker, NGINX traffic switching, health checks, rollback, release history, and Jenkins pipeline examples.
+A practical Linux VM CI/CD template for blue/green deployments with systemd or Docker, NGINX or Apache traffic switching, health checks, rollback, release history, and Jenkins pipeline examples.
 
 ## Project Overview
 
-This repository provides an application-agnostic release template for teams that deploy services to Linux virtual machines and want safer production changes without adopting a full platform stack first. It standardizes service configuration, release directories, active/inactive color state, health validation, generated NGINX config, controlled traffic switching, rollback, and Jenkins orchestration.
+This repository provides an application-agnostic release template for teams that deploy services to Linux virtual machines and want safer production changes without adopting a full platform stack first. It standardizes service configuration, release directories, active/inactive color state, health validation, generated NGINX or Apache config, controlled traffic switching, rollback, and Jenkins orchestration.
 
 The v1.0.0 release is VM-focused. Kubernetes is not implemented in v1; Kubernetes, Helm, and cloud-native workflows remain the v2.0.0 roadmap direction.
 
 ## Problem It Solves
 
-Manual VM releases often mix build steps, SSH commands, NGINX edits, health checks, and rollback decisions into one fragile operator flow. This template separates those concerns into clear scripts and docs so teams can:
+Manual VM releases often mix build steps, SSH commands, NGINX or Apache edits, health checks, and rollback decisions into one fragile operator flow. This template separates those concerns into clear scripts and docs so teams can:
 
 - deploy to an inactive blue/green color before switching traffic
 - validate candidate health before promotion
-- generate and validate NGINX config before reload
+- generate and validate NGINX or Apache config before reload
 - preserve release history and inspect state during incidents
 - roll back to a retained release through a repeatable workflow
 - run the same flow locally, manually, or from Jenkins
@@ -34,9 +34,10 @@ For local dry-runs and validation:
 For live runtime and traffic switching on a Linux VM:
 
 - systemd for no-Docker VM deployments, or Docker for container/demo deployments
-- NGINX
+- NGINX or Apache HTTPD
+- Apache modules `proxy`, `proxy_http`, and `headers` when using `proxy_runtime: apache`
 - access to write the configured service deploy paths
-- permission to reload NGINX when performing a live switch
+- permission to reload NGINX or Apache when performing a live switch
 
 Optional:
 
@@ -56,7 +57,7 @@ Optional:
 - HTTP health-check utility with retries and timeout
 - runtime start, stop, and status commands per color
 - NGINX config generation and validation
-- controlled NGINX traffic switching with dry-run mode
+- controlled NGINX or Apache traffic switching with dry-run mode
 - rollback to previous or selected retained release
 - main deployment orchestrator with dry-run mode
 - Jenkins declarative pipeline examples
@@ -121,6 +122,9 @@ make start-color SERVICE=billing-api COLOR=green RELEASE=<release_id>
 make status-color SERVICE=billing-api COLOR=green
 make health URL=http://localhost:18081/health
 make switch-traffic-dry-run SERVICE=billing-api COLOR=green
+./scripts/generate-apache.sh
+./scripts/validate-apache.sh ./build/apache
+./scripts/switch-traffic.sh pico-photos-api green --dry-run
 make deploy-dry-run SERVICE=billing-api ARTIFACT=examples/mock-artifact
 make rollback-dry-run SERVICE=billing-api
 ```
@@ -163,7 +167,7 @@ billing-api-green
 
 Inject the service port per color through the systemd unit, drop-in, or environment file. The template resolves the blue/green port from config and exposes it to runtime commands as `ZERO_DOWNTIME_PORT`, but it does not rewrite systemd unit files automatically.
 
-Deployment creates a release, starts the inactive color, health-checks that color, generates and validates NGINX config, reloads NGINX, then updates `active_color` only after the reload succeeds. The old color remains running until explicitly stopped.
+Deployment creates a release, starts the inactive color, health-checks that color, generates and validates the configured proxy config, reloads NGINX or Apache, then updates `active_color` only after the reload succeeds. The old color remains running until explicitly stopped.
 
 Read [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for the deeper design.
 
@@ -213,4 +217,4 @@ See [docs/ROADMAP.md](docs/ROADMAP.md) for the public roadmap.
 
 ## Disclaimer
 
-This repository is a template foundation, not a guarantee of zero downtime for every workload. Live systemd or Docker runtime behavior and NGINX behavior must be verified on target Linux VMs before production use.
+This repository is a template foundation, not a guarantee of zero downtime for every workload. Live systemd or Docker runtime behavior and NGINX or Apache behavior must be verified on target Linux VMs before production use.

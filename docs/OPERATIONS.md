@@ -1,13 +1,13 @@
 # Operations
 
-This document is the operator runbook for the `v1.0.0` Linux VM template foundation. It covers local validation, release handling, runtime color management, NGINX generation and switching, rollback, deployment, and Jenkins operation.
+This document is the operator runbook for the `v1.0.0` Linux VM template foundation. It covers local validation, release handling, runtime color management, NGINX/Apache generation and switching, rollback, deployment, and Jenkins operation.
 
 ## Operator Responsibilities
 
 Operators are responsible for:
 
 - provisioning and securing Linux VMs
-- installing and maintaining systemd services or Docker, plus NGINX
+- installing and maintaining systemd services or Docker, plus NGINX or Apache
 - configuring Jenkins credentials and deployment access
 - defining service configuration and health-check paths
 - validating releases in staging before production
@@ -36,7 +36,7 @@ make show-state SERVICE=billing-api
 
 The inspection command prints service name, deploy path, active color, inactive color, current symlink target, latest history entry, and lock status.
 
-State initialization does not deploy code, switch NGINX traffic, perform rollback, or call Jenkins.
+State initialization does not deploy code, switch proxy traffic, perform rollback, or call Jenkins.
 
 ## Release Artifact Management
 
@@ -115,9 +115,9 @@ Container names remain deterministic for Docker-backed services:
 
 Container demo mode expects `artifact/app.txt` in the release directory and starts a small HTTP service that returns `200` on `/health`.
 
-Starting a color does not update `state/active_color`, stop the other color, switch NGINX traffic, run rollback, or call Jenkins. Operators should treat this phase as process startup validation only.
+Starting a color does not update `state/active_color`, stop the other color, switch proxy traffic, run rollback, or call Jenkins. Operators should treat this phase as process startup validation only.
 
-## NGINX Config Generation
+## Proxy Config Generation
 
 NGINX generation writes reviewable config files into `build/nginx`:
 
@@ -137,6 +137,23 @@ make validate-nginx
 
 If `nginx` is installed, validation runs `nginx -t` against a temporary config. If it is not installed, static checks run and the command warns that full syntax validation was skipped.
 
+Apache generation writes reviewable config files into `build/apache`:
+
+```bash
+./scripts/generate-apache.sh
+./scripts/generate-apache.sh --service pico-photos-api
+./scripts/generate-apache.sh --output ./build/apache
+```
+
+Validate generated Apache files:
+
+```bash
+./scripts/validate-apache.sh ./build/apache
+```
+
+Apache mode is selected per service with `proxy_runtime: apache`. It generates a `<VirtualHost *:80>` reverse proxy to the active blue/green port. Apache modules `proxy`, `proxy_http`, and `headers` must be enabled on the target VM.
+
+
 Generated files use the service `active_color` to choose the upstream port. Changing `state/active_color` changes the generated upstream port. NGINX generation alone does not write to `/etc/nginx`, reload NGINX, switch traffic, update active color, perform rollback, or call Jenkins.
 
 Production install path recommendation:
@@ -147,7 +164,7 @@ Production install path recommendation:
 
 ## Controlled Traffic Switching
 
-Traffic switching moves one service to a target color after health and NGINX validation gates pass.
+Traffic switching moves one service to a target color after health and configured proxy validation gates pass. `proxy_runtime` defaults to `nginx`; set `proxy_runtime: apache` for Apache HTTPD reverse proxy switching.
 
 Dry-run first:
 
@@ -163,31 +180,35 @@ Live switch:
 make switch-traffic SERVICE=billing-api COLOR=green
 ```
 
-Default install path is local and safe:
+Default install paths are local and safe:
 
 ```text
 ./build/nginx-installed
+./build/apache-installed
 ```
 
 Override the install path only when intentionally preparing an operational host:
 
 ```bash
 NGINX_INSTALL_DIR=/etc/nginx/conf.d/zero-downtime ./scripts/switch-traffic.sh billing-api green
+APACHE_CONFIG_DIR=/etc/apache2/sites-available ./scripts/switch-traffic.sh pico-photos-api green
 ```
 
-Default reload command:
+Default reload commands:
 
 ```bash
 nginx -s reload
+apache2ctl graceful
 ```
 
-Override example:
+Override examples:
 
 ```bash
 NGINX_RELOAD_CMD="sudo systemctl reload nginx" ./scripts/switch-traffic.sh billing-api green
+APACHE_RELOAD_CMD="sudo systemctl reload apache2" ./scripts/switch-traffic.sh pico-photos-api green
 ```
 
-`active_color` is updated only after NGINX validation and reload succeed. If target container validation, health checks, config validation, or reload fails, the previous active color remains unchanged. The old color is not stopped automatically.
+`active_color` is updated only after the configured proxy validation and reload succeed. If target container validation, health checks, config validation, or reload fails, the previous active color remains unchanged. The old color is not stopped automatically.
 
 ## Main Deployment Command
 

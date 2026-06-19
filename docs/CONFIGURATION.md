@@ -1,6 +1,6 @@
 # Configuration
 
-This document describes the configuration foundation for the `v1.0.0` Linux VM deployment template. Configuration is consumed by validation, state, release, runtime, NGINX, rollback, deploy, and Jenkins workflows.
+This document describes the configuration foundation for the `v1.0.0` Linux VM deployment template. Configuration is consumed by validation, state, release, runtime, NGINX or Apache proxy, rollback, deploy, and Jenkins workflows.
 
 ## Configuration Structure
 
@@ -29,6 +29,7 @@ Each service is registered as a flat YAML object under `services`:
 services:
   - service_name: billing-api
     runtime: container
+    proxy_runtime: nginx
     public_port: 8080
     blue_port: 18080
     green_port: 18081
@@ -40,14 +41,42 @@ services:
 Required fields:
 
 - `service_name` - stable service identifier used by scripts and release state
-- `runtime` - runtime category, either `systemd` or `container`
+- `runtime` - process runtime category, either `systemd` or `container`
+- `proxy_runtime` - traffic proxy category, either `nginx` or `apache`; defaults to `nginx` when omitted
 - `public_port` - externally exposed service port for the VM-level contract
 - `blue_port` - host port reserved for the blue deployment slot
 - `green_port` - host port reserved for the green deployment slot
 - `health_path` - HTTP path health checks call before promotion
 - `deploy_path` - absolute path where service release data will live on the VM
-- `nginx_server_name` - server name generated NGINX configuration will target
+- `nginx_server_name` - server name generated NGINX or Apache configuration will target; `_` maps to `localhost` in Apache templates
 
+
+
+## Proxy Runtime Fields
+
+`proxy_runtime` controls which reverse proxy config is generated and switched for a service. It is optional and defaults to `nginx` for backward compatibility.
+
+Supported values:
+
+- `proxy_runtime: nginx`
+- `proxy_runtime: apache`
+
+Use `proxy_runtime: apache` when Apache HTTPD owns ports `80` and `443` on the VM. Apache reverse proxy mode generates a `<VirtualHost *:80>` config that proxies traffic to the active blue/green application port.
+
+Apache mode requires these modules on the target VM:
+
+- `proxy`
+- `proxy_http`
+- `headers`
+
+Safe local Apache paths:
+
+```text
+build/apache
+build/apache-installed
+```
+
+Production Apache install path can be set with `APACHE_CONFIG_DIR`, for example `/etc/apache2/sites-available`. Reload can be overridden with `APACHE_RELOAD_CMD`, for example `APACHE_RELOAD_CMD="sudo systemctl reload apache2"`.
 
 ## Systemd Runtime Fields
 
@@ -185,6 +214,7 @@ The validator checks:
 
 - all required fields are present
 - runtime is either `systemd` or `container`
+- proxy runtime is either `nginx` or `apache` when set
 - systemd services define `start_command`, `stop_command`, and `status_command`
 - service names are unique
 - ports are unique across `public_port`, `blue_port`, and `green_port`
