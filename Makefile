@@ -1,4 +1,4 @@
-.PHONY: validate-config init-service show-state health create-release list-releases start-color stop-color status-color
+.PHONY: validate-config init-service show-state health create-release list-releases start-color stop-color status-color generate-nginx validate-nginx
 
 validate-config:
 	./scripts/validate-config.sh
@@ -59,3 +59,10 @@ status-color:
 		exit 1; \
 	fi
 	./scripts/status-color.sh "$(SERVICE)" "$(COLOR)"
+
+
+generate-nginx:
+	./scripts/generate-nginx.sh
+
+validate-nginx:
+	./scripts/validate-nginx.sh ./build/nginx

@@ -476,6 +476,29 @@ Inactive color start flow:
 
 Phase 5 intentionally does not switch traffic. Starting a color only proves that a candidate process can run on its assigned port. Traffic switching belongs to a later NGINX phase after health validation and operator-controlled promotion semantics are defined.
 
+## Phase 6 NGINX Generation Foundation
+
+Phase 6 generates NGINX config files from the service registry and current service state. Generated files are written to `build/nginx` by default so operators can review and validate them before any production install step.
+
+Generation reads:
+
+- `nginx_server_name`
+- `public_port`
+- `service_name`
+- `health_path`
+- `active_color` from service state
+- blue or green upstream port based on `active_color`
+
+The generated service config includes one upstream pointing at the active color port, a server block listening on the configured public port, health path proxying, root path proxying, and common proxy headers.
+
+Production install path recommendation for a future traffic-switch phase:
+
+```text
+/etc/nginx/conf.d/zero-downtime/<service>.conf
+```
+
+Phase 6 does not write to that path, reload NGINX, switch traffic, update `active_color`, implement rollback, or call Jenkins.
+
 ## Required v1.0.0 Scripts
 
 These scripts are required for `v1.0.0`, but this document does not implement them.
@@ -486,7 +509,8 @@ These scripts are required for `v1.0.0`, but this document does not implement th
 | `scripts/validate-config.sh` | Validate service and environment YAML before deployment. |
 | `scripts/deploy.sh` | Orchestrate candidate deployment for one or more services. |
 | `scripts/health-check.sh` | Run HTTP health checks with timeout and retry behavior. |
-| `scripts/generate-nginx.sh` | Render NGINX config from service registration and selected colors. |
+| `scripts/generate-nginx.sh` | Render NGINX config into `build/nginx` from service registration and active color state. |
+| `scripts/validate-nginx.sh` | Validate generated NGINX config statically and with `nginx -t` when available. |
 | `scripts/switch-traffic.sh` | Validate, install, and reload generated NGINX config. |
 | `scripts/rollback.sh` | Restore traffic to the previous healthy color and record rollback state. |
 | `scripts/list-releases.sh` | Show retained release artifacts and release metadata. |
@@ -499,6 +523,7 @@ These scripts are required for `v1.0.0`, but this document does not implement th
 | `scripts/lib/health.sh` | Build health URLs and execute health validation. |
 | `scripts/lib/release.sh` | Create release IDs, release directories, metadata, symlinks, and retention cleanup. |
 | `scripts/lib/runtime.sh` | Resolve runtime settings and manage blue/green color containers. |
+| `scripts/lib/nginx.sh` | Resolve NGINX inputs, render service config, and validate generated config. |
 
 ## Jenkins Integration
 

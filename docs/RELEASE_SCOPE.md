@@ -18,6 +18,7 @@ It should help teams deploy containerized services to generic Linux VMs using Je
 - container runtime process management for blue/green service instances
 - immutable image tagging guidance
 - multi-service blue/green deployment support
+- NGINX config generation and validation before traffic switching
 - NGINX traffic switching from generated config
 - HTTP health-check gates before promotion
 - post-switch verification
@@ -53,6 +54,7 @@ The v1 script inventory is:
 - `scripts/deploy.sh`
 - `scripts/health-check.sh`
 - `scripts/generate-nginx.sh`
+- `scripts/validate-nginx.sh`
 - `scripts/switch-traffic.sh`
 - `scripts/create-release.sh`
 - `scripts/list-releases.sh`
@@ -81,6 +83,7 @@ These scripts are required for the v1 design but should be implemented only afte
 - full monitoring or tracing stack installation
 - application-specific deployment logic embedded in the core scripts
 - runtime support beyond `runtime: container` in the v1 foundation
+- generated NGINX config writes to `/etc/nginx` before a future install/switch phase
 - release artifact management that switches traffic or performs rollback
 
 ## Stability Criteria

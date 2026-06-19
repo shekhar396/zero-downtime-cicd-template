@@ -105,6 +105,34 @@ The runtime foundation supports only `runtime: container` and requires Docker on
 
 Starting a color does not update `state/active_color`, stop the other color, switch NGINX traffic, run rollback, or call Jenkins. Operators should treat this phase as process startup validation only.
 
+## NGINX Config Generation
+
+Phase 6 generates reviewable NGINX config files into `build/nginx`:
+
+```bash
+./scripts/generate-nginx.sh
+./scripts/generate-nginx.sh --service billing-api
+./scripts/generate-nginx.sh --output ./build/nginx
+make generate-nginx
+```
+
+Validate generated files:
+
+```bash
+./scripts/validate-nginx.sh ./build/nginx
+make validate-nginx
+```
+
+If `nginx` is installed, validation runs `nginx -t` against a temporary config. If it is not installed, static checks run and the command warns that full syntax validation was skipped.
+
+Generated files use the service `active_color` to choose the upstream port. Changing `state/active_color` changes the generated upstream port. Phase 6 does not write to `/etc/nginx`, reload NGINX, switch traffic, update active color, implement rollback, or call Jenkins.
+
+Future production install path recommendation:
+
+```text
+/etc/nginx/conf.d/zero-downtime/<service>.conf
+```
+
 ## Pre-Deployment Checklist
 
 Before a release, confirm:
