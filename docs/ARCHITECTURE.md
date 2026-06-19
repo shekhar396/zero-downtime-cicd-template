@@ -400,6 +400,19 @@ worker=registry.example.com/acme/worker:0.9.7
 web=registry.example.com/acme/web:2.8.0
 ```
 
+## Phase 3 Health Validation Foundation
+
+Phase 3 introduces reusable health validation primitives for future deployments:
+
+- `scripts/healthcheck.sh` checks any HTTP URL and succeeds only on `2xx`.
+- `scripts/lib/health.sh` builds health URLs and wraps common validation behavior.
+- `scripts/validate-release.sh` validates one registered service candidate port using the service `health_path`.
+- `examples/mock-health-server/` provides a local shell-only endpoint for validation.
+
+Release validation depends on Phase 1 configuration and Phase 2 service state. It verifies that a service exists, state has been initialized, and the candidate health endpoint responds successfully. It does not create releases, update state, switch NGINX traffic, run Jenkins, or roll back.
+
+Future deployment phases should call release validation after starting the inactive color and before promotion.
+
 ## Required v1.0.0 Scripts
 
 These scripts are required for `v1.0.0`, but this document does not implement them.

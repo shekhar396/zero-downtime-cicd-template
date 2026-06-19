@@ -79,6 +79,31 @@ Expected rollback steps:
 5. Record the rollback event.
 6. Preserve logs and deployment metadata for review.
 
+## Release Health Validation
+
+Phase 3 adds health validation commands for operators and future deployment scripts.
+
+Run a direct URL check:
+
+```bash
+./scripts/healthcheck.sh http://localhost:8080/health
+make health URL=http://localhost:8080/health
+```
+
+Validate a registered service candidate port:
+
+```bash
+./scripts/validate-release.sh billing-api 18080
+```
+
+Before running `validate-release.sh`, initialize service state:
+
+```bash
+./scripts/init-service.sh billing-api
+```
+
+A successful health check requires an HTTP `2xx` response. Non-`2xx` responses, connection failures, and timeouts are failures. Phase 3 validation does not deploy code, switch traffic, promote a release, reload NGINX, or run rollback.
+
 ## Health-Check Expectations
 
 Each service should define:

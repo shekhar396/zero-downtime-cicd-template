@@ -1,4 +1,4 @@
-.PHONY: validate-config init-service show-state
+.PHONY: validate-config init-service show-state health
 
 validate-config:
 	./scripts/validate-config.sh
@@ -16,3 +16,10 @@ show-state:
 		exit 1; \
 	fi
 	./scripts/show-state.sh "$(SERVICE)"
+
+health:
+	@if [ -z "$(URL)" ]; then \
+		echo "Usage: make health URL=<health_url>"; \
+		exit 1; \
+	fi
+	./scripts/healthcheck.sh "$(URL)"
