@@ -1,15 +1,16 @@
 services:
-  - service_name: pico-photos-api
+  - service_name: zero-downtime-demo-go
     runtime: systemd
     proxy_runtime: apache
-    public_port: 80
-    blue_port: 8860
-    green_port: 8861
-    health_path: /api/v1/test
-    deploy_path: /opt/apps/pico-photos-api
+    public_port: 8080
+    blue_port: 18080
+    green_port: 18081
+    health_path: /health
+    deploy_path: /var/www/zero-downtime-demo-go
     nginx_server_name: _
+    apache_server_name: _
     retention_count: 5
-    start_command: sudo -n systemctl start pico-photos-api-{color}
-    stop_command: sudo -n systemctl stop pico-photos-api-{color}
-    status_command: sudo -n systemctl is-active pico-photos-api-{color}
-    env_file: /opt/apps/pico-photos-api/shared/.env
+    start_command: sudo -n systemctl restart zero-downtime-demo-go-{color}
+    stop_command: sudo -n systemctl stop zero-downtime-demo-go-{color}
+    status_command: sudo -n systemctl is-active zero-downtime-demo-go-{color}
+    env_file: /var/www/zero-downtime-demo-go/shared/.env
