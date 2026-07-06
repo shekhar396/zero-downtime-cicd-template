@@ -1,4 +1,5 @@
 # Example service registry for a three-service VM deployment.
+# Port roles: public_port is the external Apache/NGINX proxy port; blue_port and green_port are application ports.
 services:
   - service_name: billing-api
     runtime: container

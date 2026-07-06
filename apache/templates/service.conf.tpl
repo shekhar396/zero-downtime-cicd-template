@@ -3,7 +3,7 @@
 # active_color: {{active_color}}
 # active_upstream_port: {{active_upstream_port}}
 
-<VirtualHost *:80>
+<VirtualHost *:{{public_port}}>
     ServerName {{apache_server_name}}
 
     ProxyPreserveHost On

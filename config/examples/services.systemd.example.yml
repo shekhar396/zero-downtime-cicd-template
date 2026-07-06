@@ -1,4 +1,5 @@
 # Example service registry for no-Docker Linux VM deployments using systemd.
+# Port roles: public_port is the external Apache/NGINX proxy port; blue_port and green_port are application ports.
 # Copy the shape into config/services.yml and replace values for your service.
 services:
   - service_name: billing-api

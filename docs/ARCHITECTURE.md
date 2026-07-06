@@ -398,7 +398,7 @@ Generation reads:
 - `active_color` from service state
 - blue or green upstream port based on `active_color`
 
-The generated NGINX config includes an upstream and server block. The generated Apache config includes `<VirtualHost *:80>`, `ProxyPass`, `ProxyPassReverse`, `ProxyPreserveHost`, and forwarded headers. Apache requires modules `proxy`, `proxy_http`, and `headers`.
+The generated NGINX config includes an upstream and server block. The generated Apache config includes a VirtualHost listening on the configured `public_port`, `ProxyPass`, `ProxyPassReverse`, `ProxyPreserveHost`, and forwarded headers. Apache requires modules `proxy`, `proxy_http`, and `headers`.
 
 Production install path recommendation:
 

@@ -51,6 +51,11 @@ validate_services_file() {
         errors++
         return
       }
+      if ((value + 0) < 1 || (value + 0) > 65535) {
+        printf "[validate-config] ERROR: %s for %s must be between 1 and 65535: %s\n", field, service, value > "/dev/stderr"
+        errors++
+        return
+      }
       if (value in ports) {
         printf "[validate-config] ERROR: duplicate port %s used by %s.%s and %s\n", value, service, field, ports[value] > "/dev/stderr"
         errors++

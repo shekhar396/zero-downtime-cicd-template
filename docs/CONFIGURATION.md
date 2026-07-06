@@ -43,9 +43,9 @@ Required fields:
 - `service_name` - stable service identifier used by scripts and release state
 - `runtime` - process runtime category, either `systemd` or `container`
 - `proxy_runtime` - traffic proxy category, either `nginx` or `apache`; defaults to `nginx` when omitted
-- `public_port` - externally exposed service port for the VM-level contract
-- `blue_port` - host port reserved for the blue deployment slot
-- `green_port` - host port reserved for the green deployment slot
+- `public_port` - externally exposed proxy port; Apache uses this as the VirtualHost listen port
+- `blue_port` - host port reserved for the blue application deployment slot
+- `green_port` - host port reserved for the green application deployment slot
 - `health_path` - HTTP path health checks call before promotion
 - `deploy_path` - absolute path where service release data will live on the VM
 - `nginx_server_name` - server name generated NGINX or Apache configuration will target; `_` maps to `localhost` in Apache templates
@@ -61,7 +61,7 @@ Supported values:
 - `proxy_runtime: nginx`
 - `proxy_runtime: apache`
 
-Use `proxy_runtime: apache` when Apache HTTPD owns ports `80` and `443` on the VM. Apache reverse proxy mode generates a `<VirtualHost *:80>` config that proxies traffic to the active blue/green application port.
+Use `proxy_runtime: apache` when Apache HTTPD owns the service public port on the VM. Apache reverse proxy mode generates a VirtualHost listening on the configured `public_port`, for example `<VirtualHost *:{{public_port}}>`, and proxies traffic to the active blue/green application port.
 
 Apache mode requires these modules on the target VM:
 
@@ -217,7 +217,7 @@ The validator checks:
 - proxy runtime is either `nginx` or `apache` when set
 - systemd services define `start_command`, `stop_command`, and `status_command`
 - service names are unique
-- ports are unique across `public_port`, `blue_port`, and `green_port`
+- ports are numeric, in the range `1` to `65535`, and unique across `public_port`, `blue_port`, and `green_port`
 - `blue_port` and `green_port` differ for each service
 - `health_path` begins with `/`
 - `deploy_path` is absolute

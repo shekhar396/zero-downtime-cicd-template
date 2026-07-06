@@ -151,7 +151,7 @@ Validate generated Apache files:
 ./scripts/validate-apache.sh ./build/apache
 ```
 
-Apache mode is selected per service with `proxy_runtime: apache`. It generates a `<VirtualHost *:80>` reverse proxy to the active blue/green port. Apache modules `proxy`, `proxy_http`, and `headers` must be enabled on the target VM.
+Apache mode is selected per service with `proxy_runtime: apache`. It generates a VirtualHost listening on the configured `public_port` and reverse proxies to the active blue/green application port. Apache modules `proxy`, `proxy_http`, and `headers` must be enabled on the target VM.
 
 
 Generated files use the service `active_color` to choose the upstream port. Changing `state/active_color` changes the generated upstream port. NGINX generation alone does not write to `/etc/nginx`, reload NGINX, switch traffic, update active color, perform rollback, or call Jenkins.
