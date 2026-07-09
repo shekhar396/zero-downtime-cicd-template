@@ -60,6 +60,7 @@ Optional:
 - controlled NGINX or Apache traffic switching with dry-run mode
 - rollback to previous or selected retained release
 - main deployment orchestrator with dry-run mode
+- automated application onboarding workflow for first local VM validation
 - Jenkins declarative pipeline examples
 - operator docs, troubleshooting docs, demo guide, and release checklist
 
@@ -77,6 +78,16 @@ Optional:
 - a guarantee that every workload can achieve zero downtime without application-level readiness and compatibility work
 
 ## Quick Start
+
+For a first live validation on a Linux VM, use the automated onboarding workflow. It validates the host and template config, prepares the deploy path, creates `shared/.env` from `config/app.env.example` when missing, builds the demo app, prepares systemd units for `runtime: systemd`, delegates deployment to the existing deploy flow, and verifies `/live`, `/health`, `/ready`, and `/version` through the configured public port.
+
+```bash
+./scripts/onboard.sh \
+  --source ~/workspace/zero-downtime-demo-go \
+  --environment production
+```
+
+Use `--artifact <path>` when the build output cannot be inferred. Use `--build-command <command>` to replace the default `make test` and `make build` sequence for non-Makefile runtimes. If installed systemd units differ from generated units, onboarding aborts; rerun with `--force` only after reviewing the generated units and accepting backups under `/etc/systemd/system/*.bak.<timestamp>`.
 
 Validate the repository foundation:
 
@@ -165,7 +176,7 @@ billing-api-blue
 billing-api-green
 ```
 
-Inject the service port per color through the systemd unit, drop-in, or environment file. The template resolves the blue/green port from config and exposes it to runtime commands as `ZERO_DOWNTIME_PORT`, but it does not rewrite systemd unit files automatically.
+Generate blue/green systemd units with `./scripts/init-service.sh <service> --generate-systemd`; onboarding uses the same generator, compares installed units, backs up differing units only with `--force`, reloads systemd, and enables units without restarting them. The generated units expose `ZERO_DOWNTIME_PORT`, `PORT`, `ZERO_DOWNTIME_COLOR`, `ZERO_DOWNTIME_DEPLOY_PATH`, and `ZERO_DOWNTIME_RELEASE_DIR`. The `current` path remains the release symlink managed by `create-release.sh`, not a directory created during onboarding.
 
 Deployment creates a release, starts the inactive color, health-checks that color, generates and validates the configured proxy config, reloads NGINX or Apache, then updates `active_color` only after the reload succeeds. The old color remains running until explicitly stopped.
 

@@ -3,26 +3,59 @@ set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 SERVICE_CONFIG_FILE="${SERVICE_CONFIG_FILE:-$ROOT_DIR/config/services.yml}"
+generate_systemd="no"
+systemd_output_dir="$ROOT_DIR/build/systemd"
 
 # shellcheck source=scripts/lib/service-discovery.sh
 source "$ROOT_DIR/scripts/lib/service-discovery.sh"
 # shellcheck source=scripts/lib/state.sh
 source "$ROOT_DIR/scripts/lib/state.sh"
+# shellcheck source=scripts/lib/systemd.sh
+source "$ROOT_DIR/scripts/lib/systemd.sh"
 
 usage() {
   cat <<'USAGE'
-Usage: ./scripts/init-service.sh <service_name>
+Usage:
+  ./scripts/init-service.sh <service_name>
+  ./scripts/init-service.sh <service_name> --generate-systemd [--systemd-output <dir>]
 
 Initializes the release/state directory structure for one registered service.
+When --generate-systemd is supplied for runtime: systemd services, also renders
+blue/green unit files to the requested output directory. It does not install,
+enable, restart, or reload systemd.
 USAGE
 }
 
-if [[ "$#" -ne 1 ]]; then
+if [[ "$#" -lt 1 ]]; then
   usage
   exit 1
 fi
 
 service_name="$1"
+shift
+
+while [[ "$#" -gt 0 ]]; do
+  case "$1" in
+    --generate-systemd)
+      generate_systemd="yes"
+      shift
+      ;;
+    --systemd-output)
+      [[ "$#" -ge 2 ]] || { echo "[init-service] ERROR: --systemd-output requires a value" >&2; exit 2; }
+      systemd_output_dir="$2"
+      shift 2
+      ;;
+    -h|--help)
+      usage
+      exit 0
+      ;;
+    *)
+      echo "[init-service] ERROR: unknown argument: $1" >&2
+      usage
+      exit 2
+      ;;
+  esac
+done
 
 echo "[init-service] Validating service configuration..."
 "$ROOT_DIR/scripts/validate-config.sh" "$SERVICE_CONFIG_FILE" >/dev/null
@@ -66,4 +99,13 @@ else
 fi
 
 echo "[init-service] Inactive color: $inactive_color"
+
+if [[ "$generate_systemd" == "yes" ]]; then
+  echo "[init-service] Generating systemd units..."
+  while IFS= read -r generated_unit; do
+    echo "[init-service] generated=$generated_unit"
+  done < <(systemd_generate_service_units "$service_name" "$systemd_output_dir" "$SERVICE_CONFIG_FILE")
+  echo "[init-service] systemd_output_dir=$systemd_output_dir"
+fi
+
 echo "[init-service] Done. No deployment was performed."
