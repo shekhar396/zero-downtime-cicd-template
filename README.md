@@ -35,9 +35,9 @@ For live runtime and traffic switching on a Linux VM:
 
 - systemd for no-Docker VM deployments, or Docker for container/demo deployments
 - NGINX or Apache HTTPD
-- Apache modules `proxy`, `proxy_http`, and `headers` when using `proxy_runtime: apache`
-- access to write the configured service deploy paths
-- permission to reload NGINX or Apache when performing a live switch
+- sudo access for privileged VM operations such as deploy directory creation, systemd unit installation, Apache site installation, module enablement, and proxy reloads
+
+When `proxy_runtime: apache` is used, onboarding verifies Apache, enables the required `proxy`, `proxy_http`, and `headers` modules when needed, installs the generated site, creates a managed `Listen <public_port>` config for non-80 ports, runs `apache2ctl configtest`, and reloads Apache.
 
 Optional:
 
@@ -79,7 +79,7 @@ Optional:
 
 ## Quick Start
 
-For a first live validation on a Linux VM, use the automated onboarding workflow. It validates the host and template config, prepares the deploy path, creates `shared/.env` from `config/app.env.example` when missing, builds the demo app, prepares systemd units for `runtime: systemd`, delegates deployment to the existing deploy flow, and verifies `/live`, `/health`, `/ready`, and `/version` through the configured public port.
+For a first live validation on a Linux VM, run onboarding as a normal user. It validates the host and template config, prepares the deploy path, creates `shared/.env` from `config/app.env.example` when missing, builds the application as the current user, prepares systemd units for `runtime: systemd`, configures Apache when `proxy_runtime: apache`, delegates deployment to the existing deploy flow, and verifies `/live`, `/health`, `/ready`, and `/version` through the configured public port.
 
 ```bash
 ./scripts/onboard.sh \
@@ -87,7 +87,23 @@ For a first live validation on a Linux VM, use the automated onboarding workflow
   --environment production
 ```
 
-Use `--artifact <path>` when the build output cannot be inferred. Use `--build-command <command>` to replace the default `make test` and `make build` sequence for non-Makefile runtimes. If installed systemd units differ from generated units, onboarding aborts; rerun with `--force` only after reviewing the generated units and accepting backups under `/etc/systemd/system/*.bak.<timestamp>`.
+Use `--artifact <path>` when the build output cannot be inferred. Use `--build-command <command>` to replace the default `make test` and `make build` sequence for non-Makefile runtimes. The script uses sudo only for privileged VM operations and refuses to run build commands as root. If installed systemd units or managed Apache files differ from generated files, onboarding aborts; rerun with `--force` only after reviewing the generated files and accepting timestamped backups.
+
+| Situation | Expected behavior |
+| --- | --- |
+| First run | Creates deploy dirs, env file, systemd units, Apache config, and deploys the app |
+| Rerun with no config changes | Reuses matching resources and deploys a new release |
+| Existing systemd/Apache files differ | Aborts unless `--force` is supplied |
+| `--force` | Backs up existing managed files before replacing them |
+| `.env` exists | Preserved, never overwritten |
+
+Apache may print `AH00558: Could not reliably determine the server's fully qualified domain name`. This warning is harmless for onboarding. To suppress it on Ubuntu/Debian Apache installs:
+
+```bash
+echo "ServerName localhost" | sudo tee /etc/apache2/conf-available/servername.conf
+sudo a2enconf servername
+sudo systemctl reload apache2
+```
 
 Validate the repository foundation:
 

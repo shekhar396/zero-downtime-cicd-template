@@ -14,15 +14,16 @@ Required for live service runtime, onboarding, and traffic switching on a Linux 
 
 - systemd for no-Docker deployments, or Docker for container/demo deployments
 - NGINX or Apache HTTPD, matching `proxy_runtime` in `config/services.yml`
-- Apache modules `proxy`, `proxy_http`, and `headers` when using `proxy_runtime: apache`
 - permission to write the configured service deploy path
-- passwordless or non-interactive `sudo` for systemd unit installation and proxy reloads during live onboarding
+- passwordless or non-interactive `sudo` for privileged VM operations during live onboarding
+
+When `proxy_runtime: apache` is used, onboarding verifies Apache, enables `proxy`, `proxy_http`, and `headers` when needed, installs and enables the generated site, creates a managed listen config for non-80 `public_port` values, runs `apache2ctl configtest`, and reloads Apache.
 
 Jenkins is optional and is only required when using the included pipeline examples.
 
 ## Application Onboarding
 
-Run the single onboarding entry point from this repository and point it at the demo application source directory:
+Run the single onboarding entry point as a normal user from this repository and point it at the application source directory:
 
 ```bash
 ./scripts/onboard.sh \
@@ -30,7 +31,7 @@ Run the single onboarding entry point from this repository and point it at the d
   --environment production
 ```
 
-The script orchestrates existing template components: it calls `validate-config.sh`, `init-service.sh`, generated systemd unit support, and `deploy.sh`. It does not duplicate deployment, release, health, proxy generation, or service discovery logic.
+The script orchestrates existing template components: it calls `validate-config.sh`, `init-service.sh`, generated systemd unit support, Apache generation/validation when configured, and `deploy.sh`. It does not duplicate deployment, release, health, proxy generation, or service discovery logic. It requests sudo only for privileged VM operations and refuses to run build commands as root.
 
 By default, onboarding runs `make test` and `make build` in the source directory when a Makefile exists. For future runtimes, provide one or more custom build commands and the artifact path:
 
@@ -46,7 +47,23 @@ By default, onboarding runs `make test` and `make build` in the source directory
 
 If `shared/.env` is missing under the configured deploy path, onboarding creates it from `config/app.env.example` and leaves existing files untouched. The `current` path is managed as the release symlink by `create-release.sh`; onboarding does not create it as a directory.
 
-For existing systemd units, onboarding compares installed units with generated units. Matching units are left alone. Differing units abort the run unless `--force` is supplied, in which case backups are written to `/etc/systemd/system/<unit>.bak.<timestamp>` before replacement and `systemctl daemon-reload`. Onboarding enables units but does not restart them outside the deploy flow.
+For existing systemd units and managed Apache files, onboarding compares installed files with generated files. Matching files are left alone. Differing files abort the run unless `--force` is supplied, in which case timestamped backups are written before replacement. Onboarding enables systemd units but does not restart them outside the deploy flow.
+
+| Situation | Expected behavior |
+| --- | --- |
+| First run | Creates deploy dirs, env file, systemd units, Apache config, and deploys the app |
+| Rerun with no config changes | Reuses matching resources and deploys a new release |
+| Existing systemd/Apache files differ | Aborts unless `--force` is supplied |
+| `--force` | Backs up existing managed files before replacing them |
+| `.env` exists | Preserved, never overwritten |
+
+Apache may print `AH00558: Could not reliably determine the server's fully qualified domain name`. This warning is harmless for onboarding. To suppress it on Ubuntu/Debian Apache installs:
+
+```bash
+echo "ServerName localhost" | sudo tee /etc/apache2/conf-available/servername.conf
+sudo a2enconf servername
+sudo systemctl reload apache2
+```
 
 ## Validate The Repository
 

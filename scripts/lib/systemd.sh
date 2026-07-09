@@ -61,6 +61,7 @@ WorkingDirectory=$working_directory
 $env_file_line
 Environment=ZERO_DOWNTIME_SERVICE_NAME=$service_name
 Environment=ZERO_DOWNTIME_COLOR=$color
+Environment=ACTIVE_COLOR=$color
 Environment=ZERO_DOWNTIME_PORT=$port
 Environment=PORT=$port
 Environment=ZERO_DOWNTIME_DEPLOY_PATH=$deploy_path
