@@ -105,6 +105,9 @@ services:
     status_command: sudo systemctl is-active billing-api-{color}
     working_directory: /opt/apps/billing-api/current/artifact
     env_file: /opt/apps/billing-api/shared/.env
+    executable: bin/billing-api
+    user: billing-api
+    group: billing-api
 ```
 
 For `runtime: systemd`, these fields are required:
@@ -117,6 +120,9 @@ These fields are optional but supported:
 
 - `working_directory`
 - `env_file`
+- `executable` - absolute, or relative to the release artifact directory
+- `user`
+- `group`
 
 Runtime commands may use placeholders:
 

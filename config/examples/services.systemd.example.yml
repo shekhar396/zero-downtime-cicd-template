@@ -16,6 +16,9 @@ services:
     status_command: sudo systemctl is-active billing-api-{color}
     working_directory: /opt/apps/billing-api/current/artifact
     env_file: /opt/apps/billing-api/shared/.env
+    executable: bin/billing-api
+    user: billing-api
+    group: billing-api
 
 # First production validation target placeholder.
 # Do not use until public_port, blue_port, green_port, and health_path are known.

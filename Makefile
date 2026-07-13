@@ -1,4 +1,4 @@
-.PHONY: help validate-config lint-shell init-service show-state health create-release list-releases start-color stop-color status-color generate-nginx validate-nginx generate-apache validate-apache switch-traffic switch-traffic-dry-run rollback rollback-dry-run deploy deploy-dry-run
+.PHONY: help test validate-config lint-shell init-service show-state health create-release list-releases start-color stop-color status-color generate-nginx validate-nginx generate-apache validate-apache switch-traffic switch-traffic-dry-run rollback rollback-dry-run deploy deploy-dry-run
 
 help:
 	@echo "zero-downtime-cicd-template v1.0.0 commands"
@@ -6,6 +6,7 @@ help:
 	@echo "Validation:"
 	@echo "  make validate-config"
 	@echo "  make lint-shell"
+	@echo "  make test"
 	@echo ""
 	@echo "State:"
 	@echo "  make init-service SERVICE=billing-api"
@@ -43,8 +44,11 @@ help:
 validate-config:
 	./scripts/validate-config.sh
 
+test:
+	./tests/init-service-test.sh
+
 lint-shell:
-	find scripts examples -type f -name "*.sh" -print0 | xargs -0 bash -n
+	find scripts examples tests -type f -name "*.sh" -print0 | xargs -0 bash -n
 
 init-service:
 	@if [ -z "$(SERVICE)" ]; then \

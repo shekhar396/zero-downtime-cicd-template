@@ -27,6 +27,54 @@ Initialization validates `config/services.yml`, confirms the service exists, cre
 
 Running initialization more than once is safe. Existing state is preserved.
 
+Run the script without a service name to choose from a numbered list, or use
+`--all` to initialize every registered service:
+
+```bash
+./scripts/init-service.sh
+./scripts/init-service.sh --all
+```
+
+For services configured with `runtime: systemd`, optionally generate or install
+the blue/green unit pair:
+
+```bash
+./scripts/init-service.sh billing-api --generate-systemd
+./scripts/init-service.sh billing-api --generate-systemd --systemd-output /opt/cicd/systemd
+./scripts/init-service.sh billing-api --install-systemd
+./scripts/init-service.sh --all --generate-systemd
+./scripts/init-service.sh --all --install-systemd
+```
+
+`--install-systemd` implies `--generate-systemd`. Generated files default to
+`build/systemd`; installation creates absolute-target symlinks in
+`/etc/systemd/system`, runs `systemctl daemon-reload`, and enables both color
+units. It does not start or restart either service. It also does not deploy a
+release or switch proxy traffic.
+
+Before generation or installation, the initializer checks both unit names on
+disk and through systemd. If either unit already exists—including a broken
+destination symlink—it refuses to overwrite or repair the installation. In
+`--all` mode that service is marked `SKIPPED`, remaining services continue, and
+the command returns non-zero after printing totals. If a new installation
+fails, links and enablement created for that service by the current execution
+are rolled back.
+
+Use `--yes` to suppress confirmation in a non-interactive Jenkins stage:
+
+```bash
+./scripts/init-service.sh --all --install-systemd --yes
+```
+
+After installation, verify the managed units manually:
+
+```bash
+systemctl cat billing-api-blue.service
+systemctl cat billing-api-green.service
+systemctl is-enabled billing-api-blue.service
+systemctl is-enabled billing-api-green.service
+```
+
 Inspect service state with:
 
 ```bash

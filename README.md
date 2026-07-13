@@ -120,6 +120,23 @@ make init-service SERVICE=billing-api
 make show-state SERVICE=billing-api
 ```
 
+`init-service.sh` can also select a registered service interactively, initialize
+the complete registry, and safely prepare systemd units:
+
+```bash
+./scripts/init-service.sh                         # interactive selection
+./scripts/init-service.sh --all
+./scripts/init-service.sh billing-api --generate-systemd
+./scripts/init-service.sh billing-api --install-systemd
+./scripts/init-service.sh --all --install-systemd --yes  # Jenkins/non-interactive
+```
+
+`--install-systemd` implies generation, links the generated blue/green units
+under `/etc/systemd/system`, reloads systemd, and enables both units. It never
+starts or restarts them. Existing or partial blue/green installations are not
+overwritten or repaired; the service is stopped (or skipped in `--all` mode)
+for manual review.
+
 Create and list a release from the mock artifact:
 
 ```bash
@@ -192,7 +209,7 @@ billing-api-blue
 billing-api-green
 ```
 
-Generate blue/green systemd units with `./scripts/init-service.sh <service> --generate-systemd`; onboarding uses the same generator, compares installed units, backs up differing units only with `--force`, reloads systemd, and enables units without restarting them. The generated units expose `ZERO_DOWNTIME_PORT`, `PORT`, `ZERO_DOWNTIME_COLOR`, `ZERO_DOWNTIME_DEPLOY_PATH`, and `ZERO_DOWNTIME_RELEASE_DIR`. The `current` path remains the release symlink managed by `create-release.sh`, not a directory created during onboarding.
+Generate blue/green systemd units with `./scripts/init-service.sh <service> --generate-systemd`, or install new units with `--install-systemd`. Installation refuses to overwrite any unit already known to systemd and rolls back links and enablement created by a failed attempt. Onboarding uses the same generator, compares installed units, backs up differing units only with `--force`, reloads systemd, and enables units without restarting them. The generated units expose `ZERO_DOWNTIME_PORT`, `PORT`, `ZERO_DOWNTIME_COLOR`, `ZERO_DOWNTIME_DEPLOY_PATH`, and `ZERO_DOWNTIME_RELEASE_DIR`. The `current` path remains the release symlink managed by `create-release.sh`, not a directory created during onboarding.
 
 Deployment creates a release, starts the inactive color, health-checks that color, generates and validates the configured proxy config, reloads NGINX or Apache, then updates `active_color` only after the reload succeeds. The old color remains running until explicitly stopped.
 
