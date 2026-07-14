@@ -77,6 +77,25 @@ Optional:
 - runtime types beyond `systemd` and `container`
 - a guarantee that every workload can achieve zero downtime without application-level readiness and compatibility work
 
+## New Service Onboarding
+
+Before onboarding your first application, follow the complete step-by-step guide:
+
+[Read the Service Onboarding Guide](docs/ONBOARDING.md)
+
+The guide covers:
+
+- registering services in `config/services.yml`
+- preparing deployment directories and permissions
+- initializing one or multiple services
+- generating and installing blue/green systemd units
+- preparing shared environment files
+- performing the first deployment
+- verifying health, logs, state, and proxy traffic
+- troubleshooting common onboarding problems
+
+The shorter quick start below is useful after you understand the full workflow.
+
 ## Quick Start
 
 For a first live validation on a Linux VM, run onboarding as a normal user. It validates the host and template config, prepares the deploy path, creates `shared/.env` from `config/app.env.example` when missing, builds the application as the current user, prepares systemd units for `runtime: systemd`, configures Apache when `proxy_runtime: apache`, delegates deployment to the existing deploy flow, and verifies `/live`, `/health`, `/ready`, and `/version` through the configured public port.
@@ -151,7 +170,7 @@ make deploy-dry-run SERVICE=billing-api ARTIFACT=examples/mock-artifact
 make rollback-dry-run SERVICE=billing-api
 ```
 
-See [docs/QUICK_START.md](docs/QUICK_START.md) and [docs/DEMO_WALKTHROUGH.md](docs/DEMO_WALKTHROUGH.md) for the complete walkthrough.
+See the [Service Onboarding Guide](docs/ONBOARDING.md), [Quick Start](docs/QUICK_START.md), and [Demo Walkthrough](docs/DEMO_WALKTHROUGH.md) for guided workflows.
 
 ## Main Commands
 
