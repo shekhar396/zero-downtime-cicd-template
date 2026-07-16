@@ -8,7 +8,7 @@ services:
     health_path: /health
     deploy_path: /var/www/zero-downtime-demo-go
     nginx_server_name: _
-    apache_server_name: _
+    apache_server_name: localhost
     retention_count: 5
     start_command: sudo -n systemctl restart zero-downtime-demo-go-{color}
     stop_command: sudo -n systemctl stop zero-downtime-demo-go-{color}

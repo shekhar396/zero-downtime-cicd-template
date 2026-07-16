@@ -5,10 +5,10 @@ ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 SERVICE_CONFIG_FILE="${SERVICE_CONFIG_FILE:-$ROOT_DIR/config/services.yml}"
 NGINX_INSTALL_DIR="${NGINX_INSTALL_DIR:-$ROOT_DIR/build/nginx-installed}"
 NGINX_RELOAD_CMD="${NGINX_RELOAD_CMD:-nginx -s reload}"
-APACHE_CONFIG_DIR="${APACHE_CONFIG_DIR:-$ROOT_DIR/build/apache-installed}"
-APACHE_RELOAD_CMD="${APACHE_RELOAD_CMD:-apache2ctl graceful}"
-APACHE_INSTALL_CMD="${APACHE_INSTALL_CMD:-cp}"
-APACHE_ENABLE_CMD="${APACHE_ENABLE_CMD:-}"
+APACHE_CONFIG_DIR="${APACHE_CONFIG_DIR:-/etc/apache2/sites-available}"
+APACHE_RELOAD_CMD="${APACHE_RELOAD_CMD:-sudo -n systemctl reload apache2}"
+APACHE_INSTALL_CMD="${APACHE_INSTALL_CMD:-sudo -n cp}"
+APACHE_ENABLE_CMD="${APACHE_ENABLE_CMD:-sudo -n a2ensite}"
 NGINX_SWITCH_BUILD_DIR="${NGINX_SWITCH_BUILD_DIR:-$ROOT_DIR/build/nginx-switch}"
 APACHE_SWITCH_BUILD_DIR="${APACHE_SWITCH_BUILD_DIR:-$ROOT_DIR/build/apache-switch}"
 dry_run="no"
@@ -25,9 +25,10 @@ usage() {
 Usage: ./scripts/switch-traffic.sh <service_name> <target_color> [--dry-run]
 
 Controlled traffic switch for one service. proxy_runtime defaults to nginx and
-may be set to apache per service. Dry-run validates config/state where present,
-generates candidate config, and shows intended install/reload actions without
-copying config, reloading the proxy, or updating active_color.
+may be set to apache per service. Apache live switches default to the managed
+Debian/Ubuntu site installed by onboard.sh. Dry-run validates config/state where
+present, generates candidate config, and shows intended actions without copying
+config, reloading the proxy, or updating active_color.
 USAGE
 }
 
@@ -224,7 +225,7 @@ echo "[switch-traffic] installed=$installed_file"
 
 if [[ "$proxy_runtime" == "apache" && -n "$APACHE_ENABLE_CMD" ]]; then
   echo "[switch-traffic] step=enable_apache_site"
-  bash -c "$APACHE_ENABLE_CMD"
+  bash -c "$APACHE_ENABLE_CMD \"\$1\"" _ "$service_name.conf"
 fi
 
 echo "[switch-traffic] step=validate_${proxy_runtime}"

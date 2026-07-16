@@ -76,6 +76,7 @@ active_color_file="$(state_active_color_file "$service_name" "$SERVICE_CONFIG_FI
 active_before="$(state_read_active_color "$service_name" "$SERVICE_CONFIG_FILE")"
 target_color="$(state_determine_inactive_color "$service_name" "$SERVICE_CONFIG_FILE")"
 target_port="$(runtime_resolve_color_port "$service_name" "$target_color" "$SERVICE_CONFIG_FILE")"
+current_before="$(release_current_id "$service_name" "$SERVICE_CONFIG_FILE")"
 
 if [[ -n "$manual_release" ]]; then
   rollback_release="$manual_release"
@@ -95,6 +96,7 @@ cat <<EOF
 EOF
 
 if [[ "$dry_run" == "yes" ]]; then
+  echo "[rollback] intended_current_release=$rollback_release"
   echo "[rollback] intended_start=./scripts/start-color.sh $service_name $target_color $rollback_release"
   echo "[rollback] intended_health=./scripts/validate-release.sh $service_name $target_port"
   echo "[rollback] intended_switch=./scripts/switch-traffic.sh $service_name $target_color"
@@ -102,6 +104,22 @@ if [[ "$dry_run" == "yes" ]]; then
   echo "[rollback] note=no container start, health call, NGINX reload, traffic switch, active_color update, or cleanup was performed"
   exit 0
 fi
+
+current_changed="no"
+restore_current_on_failure() {
+  local exit_code="$?"
+  trap - EXIT
+  if [[ "$exit_code" -ne 0 && "$current_changed" == "yes" && -n "$current_before" ]]; then
+    release_update_current_symlink "$service_name" "$current_before" "$SERVICE_CONFIG_FILE" || true
+    echo "[rollback] restored_current_release=$current_before" >&2
+  fi
+  exit "$exit_code"
+}
+trap restore_current_on_failure EXIT
+
+echo "[rollback] step=select_release"
+release_update_current_symlink "$service_name" "$rollback_release" "$SERVICE_CONFIG_FILE"
+current_changed="yes"
 
 echo "[rollback] step=start_target_color"
 "$ROOT_DIR/scripts/start-color.sh" "$service_name" "$target_color" "$rollback_release"
@@ -111,9 +129,11 @@ echo "[rollback] step=health_check_target_color"
 
 echo "[rollback] step=switch_traffic"
 "$ROOT_DIR/scripts/switch-traffic.sh" "$service_name" "$target_color"
+current_changed="no"
 
 active_after="$(state_read_active_color "$service_name" "$SERVICE_CONFIG_FILE")"
 state_append_release_history "$service_name" "event=rollback release_id=$rollback_release target_color=$target_color previous_color=$active_before active_color=$active_after" "$SERVICE_CONFIG_FILE"
+trap - EXIT
 
 echo "[rollback] status=rolled_back service=$service_name release_id=$rollback_release active_color=$active_after previous_color=$active_before"
 echo "[rollback] note=old color remains running until explicitly stopped; no Jenkins action was performed"

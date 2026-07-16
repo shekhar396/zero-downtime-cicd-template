@@ -264,7 +264,7 @@ Environment=ZERO_DOWNTIME_PORT=$port
 Environment=PORT=$port
 Environment=ZERO_DOWNTIME_DEPLOY_PATH=$deploy_path
 Environment=ZERO_DOWNTIME_RELEASE_DIR=$deploy_path/current
-ExecStart=/usr/bin/env bash -lc 'artifact="\${ZERO_DOWNTIME_RELEASE_DIR}/artifact"; exec_file="\${ZERO_DOWNTIME_EXECUTABLE:-}"; if [ -n "\$exec_file" ]; then case "\$exec_file" in /*) candidate="\$exec_file" ;; *) candidate="\$artifact/\$exec_file" ;; esac; else candidate="\$(find "\$artifact" -maxdepth 1 -type f -perm -111 | sort | head -n 1)"; fi; if [ -z "\$candidate" ] || [ ! -x "\$candidate" ]; then echo "No executable artifact found in \$artifact; set ZERO_DOWNTIME_EXECUTABLE in the environment file" >&2; exit 127; fi; exec "\$candidate"'
+ExecStart=/usr/bin/env bash -lc 'artifact="\${ZERO_DOWNTIME_RELEASE_DIR}/artifact"; release_path="\$(readlink -f "\${ZERO_DOWNTIME_RELEASE_DIR}")"; export RELEASE_ID="\$(basename "\$release_path")"; exec_file="\${ZERO_DOWNTIME_EXECUTABLE:-}"; if [ -n "\$exec_file" ]; then case "\$exec_file" in /*) candidate="\$exec_file" ;; *) candidate="\$artifact/\$exec_file" ;; esac; else candidate="\$(find "\$artifact" -maxdepth 1 -type f -perm -111 | sort | head -n 1)"; fi; if [ -z "\$candidate" ] || [ ! -x "\$candidate" ]; then echo "No executable artifact found in \$artifact; set ZERO_DOWNTIME_EXECUTABLE in the environment file" >&2; exit 127; fi; exec "\$candidate"'
 Restart=always
 RestartSec=3
 KillSignal=SIGTERM

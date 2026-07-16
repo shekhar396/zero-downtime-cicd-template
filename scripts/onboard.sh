@@ -505,7 +505,7 @@ deploy_application() {
     apache_reload_cmd="$(apache_reload_command)"
     APACHE_CONFIG_DIR="/etc/apache2/sites-available" \
       APACHE_INSTALL_CMD="sudo -n cp" \
-      APACHE_ENABLE_CMD="sudo -n a2ensite $SERVICE_NAME.conf" \
+      APACHE_ENABLE_CMD="sudo -n a2ensite" \
       APACHE_RELOAD_CMD="$apache_reload_cmd" \
       "$ROOT_DIR/scripts/deploy.sh" "$SERVICE_NAME" "$ARTIFACT_SOURCE"
   else

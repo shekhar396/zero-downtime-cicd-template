@@ -1,239 +1,103 @@
 # Configuration
 
-This document describes the configuration foundation for the `v1.0.0` Linux VM deployment template. Configuration is consumed by validation, state, release, runtime, NGINX or Apache proxy, rollback, deploy, and Jenkins workflows.
+Services are registered in `config/services.yml`. The parser supports a flat YAML list; keep each service definition to simple `key: value` fields.
 
-## Configuration Structure
-
-```text
-config/
-├── services.yml
-├── environments/
-│   ├── staging.yml
-│   └── production.yml
-└── examples/
-    ├── services.example.yml
-    └── services.systemd.example.yml
-```
-
-`config/services.yml` is the default service registry used by validation and deployment scripts.
-
-`config/environments/*.yml` contains VM-oriented environment settings such as release roots, state roots, log roots, deployment user, optional Docker network name, and release history retention.
-
-`config/examples/services.example.yml` shows the container/demo service registration format. `config/examples/services.systemd.example.yml` shows the no-Docker systemd format.
-
-## Service Configuration Format
-
-Each service is registered as a flat YAML object under `services`:
+## Official example
 
 ```yaml
 services:
-  - service_name: billing-api
-    runtime: container
-    proxy_runtime: nginx
+  - service_name: zero-downtime-demo-go
+    runtime: systemd
+    proxy_runtime: apache
     public_port: 8080
     blue_port: 18080
     green_port: 18081
     health_path: /health
-    deploy_path: /tmp/zero-downtime-cicd/services/billing-api
-    nginx_server_name: billing.example.com
-```
-
-Required fields:
-
-- `service_name` - stable service identifier used by scripts and release state
-- `runtime` - process runtime category, either `systemd` or `container`
-- `proxy_runtime` - traffic proxy category, either `nginx` or `apache`; defaults to `nginx` when omitted
-- `public_port` - externally exposed proxy port; Apache uses this as the VirtualHost listen port
-- `blue_port` - host port reserved for the blue application deployment slot
-- `green_port` - host port reserved for the green application deployment slot
-- `health_path` - HTTP path health checks call before promotion
-- `deploy_path` - absolute path where service release data will live on the VM
-- `nginx_server_name` - server name generated NGINX or Apache configuration will target; `_` maps to `localhost` in Apache templates
-
-
-
-## Proxy Runtime Fields
-
-`proxy_runtime` controls which reverse proxy config is generated and switched for a service. It is optional and defaults to `nginx` for backward compatibility.
-
-Supported values:
-
-- `proxy_runtime: nginx`
-- `proxy_runtime: apache`
-
-Use `proxy_runtime: apache` when Apache HTTPD owns the service public port on the VM. Apache reverse proxy mode generates a VirtualHost listening on the configured `public_port`, for example `<VirtualHost *:{{public_port}}>`, and proxies traffic to the active blue/green application port.
-
-Apache mode requires these modules on the target VM:
-
-- `proxy`
-- `proxy_http`
-- `headers`
-
-Safe local Apache paths:
-
-```text
-build/apache
-build/apache-installed
-```
-
-Production Apache install path can be set with `APACHE_CONFIG_DIR`, for example `/etc/apache2/sites-available`. Apache installs can use `APACHE_INSTALL_CMD`, defaulting to `cp`; Jenkins can use `APACHE_INSTALL_CMD="sudo -n cp"`. Optional site enable can use `APACHE_ENABLE_CMD`, for example `APACHE_ENABLE_CMD="sudo -n a2ensite pico-photos-api.conf"`. Reload can be overridden with `APACHE_RELOAD_CMD`, for example `APACHE_RELOAD_CMD="sudo -n systemctl reload apache2"`.
-
-## Systemd Runtime Fields
-
-Use `runtime: systemd` for live Linux VM deployments where Docker is unavailable or not desired. Systemd services should be split by color, for example:
-
-```text
-billing-api-blue
-billing-api-green
-```
-
-Example:
-
-```yaml
-services:
-  - service_name: billing-api
-    runtime: systemd
-    public_port: 8080
-    blue_port: 8860
-    green_port: 8861
-    health_path: /api/v1/health
-    deploy_path: /opt/apps/billing-api
+    deploy_path: /var/www/zero-downtime-demo-go
+    apache_server_name: localhost
     nginx_server_name: _
     retention_count: 5
-    start_command: sudo systemctl start billing-api-{color}
-    stop_command: sudo systemctl stop billing-api-{color}
-    status_command: sudo systemctl is-active billing-api-{color}
-    working_directory: /opt/apps/billing-api/current/artifact
-    env_file: /opt/apps/billing-api/shared/.env
-    executable: bin/billing-api
-    user: billing-api
-    group: billing-api
+    start_command: sudo -n systemctl restart zero-downtime-demo-go-{color}
+    stop_command: sudo -n systemctl stop zero-downtime-demo-go-{color}
+    status_command: sudo -n systemctl is-active zero-downtime-demo-go-{color}
+    env_file: /var/www/zero-downtime-demo-go/shared/.env
 ```
 
-For `runtime: systemd`, these fields are required:
-
-- `start_command`
-- `stop_command`
-- `status_command`
-
-These fields are optional but supported:
-
-- `working_directory`
-- `env_file`
-- `executable` - absolute, or relative to the release artifact directory
-- `user`
-- `group`
-
-Runtime commands may use placeholders:
-
-- `{color}` - `blue` or `green`
-- `{release_id}` - release being started, when available
-- `{port}` - configured blue or green port
-- `{release_dir}` - release directory path
-- `{deploy_path}` - service deploy path
-- `{service_name}` - service name
-
-The runtime helper also exports `ZERO_DOWNTIME_SERVICE_NAME`, `ZERO_DOWNTIME_COLOR`, `ZERO_DOWNTIME_RELEASE_ID`, `ZERO_DOWNTIME_PORT`, `ZERO_DOWNTIME_RELEASE_DIR`, `ZERO_DOWNTIME_DEPLOY_PATH`, `ZERO_DOWNTIME_WORKING_DIRECTORY`, and `ZERO_DOWNTIME_ENV_FILE` before running a systemd command.
-
-`PORT` should be injected per color through the systemd unit, a drop-in, or the configured environment file. This template does not rewrite systemd unit files.
-
-A commented `pico-photos-api` placeholder is included in `config/examples/services.systemd.example.yml` for the first production validation target. Its real ports and health path are intentionally marked `TBD` until known.
-
-## Container Runtime Fields
-
-Use `runtime: container` for Docker-backed VM deployments or the built-in demo artifact flow. Container support remains available, but it is optional for no-Docker servers.
-
-## Local Sample Paths
-
-The sample service registry uses `/tmp/zero-downtime-cicd/services` so validation and state initialization can run without root privileges on a development machine. Operators can change `deploy_path` to an approved VM path such as `/opt/apps/<service-name>` when preparing a real host.
-
-## Environment Override Strategy
-
-Environment files are intentionally separate from service registration:
-
-```yaml
-environment: staging
-release_root: /opt/zero-downtime-cicd
-state_root: /opt/zero-downtime-cicd/state
-log_root: /opt/zero-downtime-cicd/logs
-deployment_user: deploy
-docker_network: zero-downtime-staging
-release_history_limit: 20
-```
-
-The intended strategy is:
-
-- keep service identity and ports in `config/services.yml`
-- keep VM paths, state paths, deployment user, and environment-level settings in `config/environments/*.yml`
-- keep secrets out of this repository
-- keep active blue/green state out of static config; deployment scripts write state files instead
-
-## Service Discovery Utility
-
-`scripts/lib/service-discovery.sh` provides shell functions and a small CLI for repository scripts.
-
-List registered services:
-
-```bash
-./scripts/lib/service-discovery.sh list
-```
-
-Retrieve one service definition:
-
-```bash
-./scripts/lib/service-discovery.sh get billing-api
-```
-
-Validate required fields only:
-
-```bash
-./scripts/lib/service-discovery.sh validate
-```
-
-Use a non-default service file:
-
-```bash
-./scripts/lib/service-discovery.sh list config/examples/services.example.yml
-```
-
-## Validation Process
-
-Run validation with Make:
-
-```bash
-make validate-config
-```
-
-Run validation directly:
+`config/services.yml` is the source of truth. Validate changes before onboarding or deployment:
 
 ```bash
 ./scripts/validate-config.sh
 ```
 
-Validate an example file:
+## Fields
 
-```bash
-./scripts/validate-config.sh config/examples/services.example.yml
+| Field | Description |
+| --- | --- |
+| `service_name` | Unique service identifier. It also prefixes generated systemd unit and proxy file names. |
+| `runtime` | Application process manager. The documented v1 VM flow uses `systemd`. |
+| `proxy_runtime` | Proxy implementation: `apache` or `nginx`. If omitted, the scripts default to `nginx`. |
+| `public_port` | Client-facing port where the proxy listens. It must differ from all application ports. |
+| `blue_port` | Port assigned to the blue application instance. |
+| `green_port` | Port assigned to the green application instance. |
+| `health_path` | HTTP path checked on the candidate color before traffic switches. It must start with `/`. |
+| `deploy_path` | Absolute service root containing releases, shared files, logs, state, and `current`. |
+| `apache_server_name` | Apache virtual-host name. Use `localhost` for the local demo. |
+| `nginx_server_name` | NGINX `server_name`; `_` is a generic catch-all value. This field is currently required by validation. |
+| `retention_count` | Number of release directories retained. It must be a positive integer. |
+| `start_command` | Command used to start or restart a color. `{color}` is replaced with `blue` or `green`. |
+| `stop_command` | Command used to stop a color. It supports the same placeholders as `start_command`. |
+| `status_command` | Command whose exit status reports whether a color is active. |
+| `env_file` | Shared runtime environment file read by both generated systemd units. |
+
+Optional systemd fields include `working_directory`, `executable`, `user`, and `group`. When `working_directory` is omitted it defaults to `<deploy_path>/current/artifact`. When `executable` is omitted, the unit runs the first executable file at the artifact root.
+
+Commands may also use `{service_name}`, `{release_id}`, `{port}`, `{release_dir}`, and `{deploy_path}` placeholders.
+
+## Port roles
+
+```text
+client -> public_port (Apache or NGINX) -> blue_port or green_port (application)
 ```
 
-The validator checks:
+- `public_port` is the proxy-facing, client-accessible port.
+- `blue_port` is the blue application instance port.
+- `green_port` is the green application instance port.
 
-- all required fields are present
-- runtime is either `systemd` or `container`
-- proxy runtime is either `nginx` or `apache` when set
-- systemd services define `start_command`, `stop_command`, and `status_command`
-- service names are unique
-- ports are numeric, in the range `1` to `65535`, and unique across `public_port`, `blue_port`, and `green_port`
-- `blue_port` and `green_port` differ for each service
-- `health_path` begins with `/`
-- `deploy_path` is absolute
+All configured ports must be unique across the service registry.
 
-## Example Services
+## Shared environment file
 
-The default `config/services.yml` registers three realistic services:
+Onboarding creates the shared environment file from `config/app.env.example` only when it does not already exist:
 
-- `billing-api`
-- `photo-api`
-- `drive-api`
+```env
+APP_NAME=zero-downtime-demo-go
+APP_ENV=production
+RELEASE_ID=local
+```
 
-These examples are Linux VM focused. Container examples are safe local defaults; the systemd example is intended for no-Docker VM deployments after service ports, health paths, and units are confirmed.
+Keep only values shared by both colors in this file. Never commit real secrets; place server runtime values directly on the target VM.
+
+Do not put these color-specific values in the shared file:
+
+```env
+PORT=18080
+ACTIVE_COLOR=blue
+```
+
+Generated systemd units inject the correct `PORT` and `ACTIVE_COLOR` for each color and derive `RELEASE_ID` from the selected release at start-up. Shared `PORT` or `ACTIVE_COLOR` values would override the intended separation or make both instances bind the same port.
+
+## Apache and NGINX
+
+Set `proxy_runtime` to match the installed proxy. `onboard.sh` manages Apache automatically for the included configuration. NGINX users can generate and inspect configuration with:
+
+```bash
+./scripts/generate-nginx.sh --service zero-downtime-demo-go --output build/nginx
+```
+
+Apache configuration can be generated without installing it:
+
+```bash
+./scripts/generate-apache.sh --service zero-downtime-demo-go --output build/apache
+```
+
+See [Operations](OPERATIONS.md) for inspection commands and [Troubleshooting](TROUBLESHOOTING.md) for managed-file conflicts.

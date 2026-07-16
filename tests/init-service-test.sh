@@ -196,6 +196,7 @@ test_generate_only() {
   [[ "$command_status" -eq 0 && -s "$SYSTEMD_OUTPUT_DIR/alpha-api-blue.service" && \
      -s "$SYSTEMD_OUTPUT_DIR/alpha-api-green.service" ]] || return 1
   grep -q '^Environment=ZERO_DOWNTIME_EXECUTABLE=bin/alpha-api$' "$SYSTEMD_OUTPUT_DIR/alpha-api-blue.service" || return 1
+  grep -q 'export RELEASE_ID=' "$SYSTEMD_OUTPUT_DIR/alpha-api-blue.service" || return 1
   grep -q '^User=alpha$' "$SYSTEMD_OUTPUT_DIR/alpha-api-blue.service" || return 1
   grep -q '^Group=alpha$' "$SYSTEMD_OUTPUT_DIR/alpha-api-blue.service" || return 1
   [[ ! -e "$SYSTEMD_UNIT_DIR/alpha-api-blue.service" && ! -L "$SYSTEMD_UNIT_DIR/alpha-api-blue.service" ]] || return 1

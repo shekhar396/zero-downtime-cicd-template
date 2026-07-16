@@ -24,7 +24,6 @@ Icon?
 # Environment and secrets
 .env
 .env.*
-!.env.example
 *.pem
 *.key
 *.crt
@@ -104,4 +103,3 @@ temp/
 .vite/
 
 config/app.env
-

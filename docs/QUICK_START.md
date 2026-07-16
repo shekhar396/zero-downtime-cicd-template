@@ -1,138 +1,153 @@
 # Quick Start
 
-This guide gets the v1.0.0 Linux VM template ready for local validation. The recommended first live validation path is the automated onboarding workflow; the lower-level commands remain available for focused testing.
+This guide onboards the official [zero-downtime-demo-go](https://github.com/shekhar396/zero-downtime-demo-go) application, deploys a second release, and tests rollback.
 
-## Prerequisites
+## 1. Prerequisites
 
-Required for repository validation:
+Use a Linux VM with:
 
-- Bash
-- Git
-- Make
+- systemd
+- Bash, Git, `curl`, and Go
+- Apache with `a2enmod`, `a2ensite`, and `a2enconf`
+- a normal user with passwordless non-interactive `sudo`
+- ports `8080`, `18080`, and `18081` available
 
-Required for live service runtime, onboarding, and traffic switching on a Linux VM:
+On Debian or Ubuntu, install the common packages with:
 
-- systemd for no-Docker deployments, or Docker for container/demo deployments
-- NGINX or Apache HTTPD, matching `proxy_runtime` in `config/services.yml`
-- permission to write the configured service deploy path
-- passwordless or non-interactive `sudo` for privileged VM operations during live onboarding
+```bash
+sudo apt-get update
+sudo apt-get install -y apache2 curl git golang-go
+```
 
-When `proxy_runtime: apache` is used, onboarding verifies Apache, enables `proxy`, `proxy_http`, and `headers` when needed, installs and enables the generated site, creates a managed listen config for non-80 `public_port` values, runs `apache2ctl configtest`, and reloads Apache.
+Confirm non-interactive sudo is ready:
 
-Jenkins is optional and is only required when using the included pipeline examples.
+```bash
+sudo -n true
+```
 
-## Application Onboarding
+## 2. Clone both repositories
 
-Run the single onboarding entry point as a normal user from this repository and point it at the application source directory:
+```bash
+git clone https://github.com/shekhar396/zero-downtime-cicd-template.git
+git clone https://github.com/shekhar396/zero-downtime-demo-go.git
+cd zero-downtime-cicd-template
+```
+
+## 3. Review the service configuration
+
+Open `config/services.yml`. The included service uses Apache, public port `8080`, and application ports `18080` and `18081`.
+
+```bash
+./scripts/validate-config.sh
+```
+
+See [Configuration](CONFIGURATION.md) before changing a field.
+
+## 4. Check required ports
+
+```bash
+sudo ss -ltnp | grep -E ':(8080|18080|18081)[[:space:]]' || true
+```
+
+No output means the ports are available. Resolve unexpected listeners before continuing.
+
+## 5. Run onboarding
 
 ```bash
 ./scripts/onboard.sh \
-  --source ~/workspace/zero-downtime-demo-go \
+  --source ../zero-downtime-demo-go \
   --environment production
 ```
 
-The script orchestrates existing template components: it calls `validate-config.sh`, `init-service.sh`, generated systemd unit support, Apache generation/validation when configured, and `deploy.sh`. It does not duplicate deployment, release, health, proxy generation, or service discovery logic. It requests sudo only for privileged VM operations and refuses to run build commands as root.
+The demo Makefile supplies `make test` and `make build`; onboarding detects `bin/zero-downtime-demo-go` as the artifact.
 
-By default, onboarding runs `make test` and `make build` in the source directory when a Makefile exists. For future runtimes, provide one or more custom build commands and the artifact path:
+Onboarding creates or installs:
 
-```bash
-./scripts/onboard.sh \
-  --source ~/workspace/zero-downtime-demo-node \
-  --service zero-downtime-demo-node \
-  --build-command "npm ci" \
-  --build-command "npm test" \
-  --build-command "npm run build" \
-  --artifact dist
-```
+- the deploy path and shared environment file
+- release, log, and state directories
+- blue and green systemd units
+- Apache modules, Listen configuration, and site configuration
+- the first release and `current` symlink
 
-If `shared/.env` is missing under the configured deploy path, onboarding creates it from `config/app.env.example` and leaves existing files untouched. The `current` path is managed as the release symlink by `create-release.sh`; onboarding does not create it as a directory.
+It then starts the inactive color, checks its health, switches traffic, and stops the previously active color when appropriate.
 
-For existing systemd units and managed Apache files, onboarding compares installed files with generated files. Matching files are left alone. Differing files abort the run unless `--force` is supplied, in which case timestamped backups are written before replacement. Onboarding enables systemd units but does not restart them outside the deploy flow.
-
-| Situation | Expected behavior |
+| Situation | Behavior |
 | --- | --- |
-| First run | Creates deploy dirs, env file, systemd units, Apache config, and deploys the app |
-| Rerun with no config changes | Reuses matching resources and deploys a new release |
-| Existing systemd/Apache files differ | Aborts unless `--force` is supplied |
-| `--force` | Backs up existing managed files before replacing them |
-| `.env` exists | Preserved, never overwritten |
+| First run | Creates and installs required resources |
+| Rerun with matching resources | Reuses existing configuration |
+| Managed files differ | Aborts without replacing them |
+| `--force` | Backs up and replaces differing managed files |
+| Shared `.env` exists | Preserves it |
 
-Apache may print `AH00558: Could not reliably determine the server's fully qualified domain name`. This warning is harmless for onboarding. To suppress it on Ubuntu/Debian Apache installs:
+## 6. Edit the shared environment when needed
 
-```bash
-echo "ServerName localhost" | sudo tee /etc/apache2/conf-available/servername.conf
-sudo a2enconf servername
-sudo systemctl reload apache2
-```
-
-## Validate The Repository
-
-```bash
-make help
-make validate-config
-make lint-shell
-```
-
-`make validate-config` validates `config/services.yml`. `make lint-shell` runs `bash -n` across shell scripts under `scripts/` and `examples/`.
-
-## Initialize A Service
-
-```bash
-make init-service SERVICE=billing-api
-make show-state SERVICE=billing-api
-```
-
-The sample local deploy path is:
+The first run copies `config/app.env.example` to:
 
 ```text
-/tmp/zero-downtime-cicd/services/billing-api
+/var/www/zero-downtime-demo-go/shared/.env
 ```
 
-For production VMs, use a durable service path such as:
-
-```text
-/opt/apps/billing-api
-```
-
-## Create A Release
+Edit common runtime values there if needed:
 
 ```bash
-make create-release SERVICE=billing-api ARTIFACT=examples/mock-artifact
-make list-releases SERVICE=billing-api
+sudoedit /var/www/zero-downtime-demo-go/shared/.env
 ```
 
-Copy a release ID from the output when testing runtime commands.
+Do not add `PORT` or `ACTIVE_COLOR`. The generated systemd units inject those values for each color.
 
-## Dry-Run Deployment
+## 7. Verify the first release
 
 ```bash
-make deploy-dry-run SERVICE=billing-api ARTIFACT=examples/mock-artifact
+curl --fail http://127.0.0.1:8080/live
+curl --fail http://127.0.0.1:8080/health
+curl --fail http://127.0.0.1:8080/ready
+curl --fail http://127.0.0.1:8080/version
+./scripts/show-state.sh zero-downtime-demo-go
+./scripts/list-releases.sh zero-downtime-demo-go
 ```
 
-Dry-run mode shows the planned release, target color, target port, health URL, and NGINX switch without creating a release, starting containers, reloading NGINX, or updating `active_color`.
+Note the active color and release ID.
 
-## Live Runtime Validation
+## 8. Deploy a second release
 
-For no-Docker VMs, use `runtime: systemd` with blue/green units such as `billing-api-blue` and `billing-api-green`. For Docker-backed demo validation, use `runtime: container`. Example container/demo commands:
+Rebuild the demo, then deploy its binary:
 
 ```bash
-make start-color SERVICE=billing-api COLOR=green RELEASE=<release_id>
-make status-color SERVICE=billing-api COLOR=green
-make health URL=http://localhost:18081/health
+cd ../zero-downtime-demo-go
+make test
+make build
+cd ../zero-downtime-cicd-template
+
+./scripts/deploy.sh \
+  zero-downtime-demo-go \
+  ../zero-downtime-demo-go/bin/zero-downtime-demo-go
 ```
 
-## Traffic Switch Dry Run
+## 9. Confirm the active color changed
 
 ```bash
-make switch-traffic-dry-run SERVICE=billing-api COLOR=green
+./scripts/show-state.sh zero-downtime-demo-go
+curl --fail http://127.0.0.1:8080/health
 ```
 
-Dry-run validates the target and generated config plan without copying config to the install path, reloading NGINX, or updating `active_color`.
+The active color should be the opposite of the color recorded after onboarding.
 
-## Rollback Dry Run
+## 10. Run rollback
+
+Preview the rollback, then execute it:
 
 ```bash
-make rollback-dry-run SERVICE=billing-api
+./scripts/rollback.sh zero-downtime-demo-go --dry-run
+./scripts/rollback.sh zero-downtime-demo-go
 ```
 
-Rollback dry-run shows the selected retained release, target color, candidate port, and intended switch.
+## 11. Confirm rollback succeeded
+
+```bash
+./scripts/show-state.sh zero-downtime-demo-go
+./scripts/list-releases.sh zero-downtime-demo-go
+curl --fail http://127.0.0.1:8080/health
+curl --fail http://127.0.0.1:8080/version
+```
+
+The active color should have changed again, and the public endpoint should report the retained release selected by rollback. The previously active color remains running after `deploy.sh` and `rollback.sh`; see [Operations](OPERATIONS.md) before stopping it.
