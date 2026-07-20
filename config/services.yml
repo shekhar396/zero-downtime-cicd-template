@@ -1,0 +1,16 @@
+services:
+  - service_name: zero-downtime-demo-go
+    runtime: systemd
+    proxy_runtime: apache
+    public_port: 8080
+    blue_port: 18080
+    green_port: 18081
+    health_path: /health
+    deploy_path: /var/www/zero-downtime-demo-go
+    nginx_server_name: _
+    apache_server_name: localhost
+    retention_count: 5
+    start_command: sudo -n systemctl restart zero-downtime-demo-go-{color}
+    stop_command: sudo -n systemctl stop zero-downtime-demo-go-{color}
+    status_command: sudo -n systemctl is-active zero-downtime-demo-go-{color}
+    env_file: /var/www/zero-downtime-demo-go/shared/.env

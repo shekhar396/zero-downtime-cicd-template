@@ -1,52 +1,31 @@
 # Roadmap
 
-The roadmap is organized by capability maturity rather than calendar date.
+## v1.0.0
 
-## Phase 1: Foundation
+The v1 release focuses on blue/green application deployment to Linux VMs with:
 
-- Define repository purpose and honest current status.
-- Document MVP boundaries and non-goals.
-- Establish contribution and AI-agent usage policies.
-- Create release and pre-release plans.
-- Add basic repository hygiene files.
+- systemd-managed blue and green processes
+- Apache or NGINX traffic switching
+- candidate health validation
+- immutable release directories and retention
+- active-color state and release history
+- rollback to a retained release
+- first-time onboarding and Jenkins-compatible deployment commands
 
-## Phase 2: MVP Implementation
+Release readiness requires a clean installation from [Quick Start](QUICK_START.md), successful deployment and rollback on representative VMs, accurate documentation, and no private or obsolete example data.
 
-- Add Jenkins pipeline skeleton.
-- Add Docker build and tagging conventions.
-- Add blue/green deployment scripts.
-- Add NGINX switch template.
-- Add health-check validation.
-- Add environment configuration examples.
+## v1.x hardening
 
-## Phase 3: Rollback and Safety
+Potential improvements that preserve the VM deployment model include:
 
-- Implement rollback command flow.
-- Add release state tracking.
-- Add failure-mode documentation.
-- Add validation for missing or unsafe configuration.
-- Test candidate failure and post-switch failure scenarios.
+- broader Linux distribution compatibility testing
+- stronger configuration validation
+- richer deployment event reporting
+- additional automated tests for proxy and rollback failures
+- security and least-privilege guidance
 
-## Phase 4: Observability
+Items are not commitments until implemented and released.
 
-- Document deployment event logging.
-- Add deployment metrics guidance.
-- Capture deployment duration, result, version, and rollback state.
-- Add examples for integrating with existing monitoring systems.
+## Future scope
 
-## Phase 5: Governance
-
-- Add release checklist.
-- Define approval expectations.
-- Document ownership model.
-- Add changelog and release-note requirements.
-- Clarify stable release criteria.
-
-## Phase 6: v1.0 Hardening
-
-- Validate fresh setup from documentation.
-- Review security and secret-handling assumptions.
-- Harden scripts for predictable failure behavior.
-- Complete representative staging tests.
-- Resolve known blockers for the documented production-ready scope.
-
+Docker, Kubernetes, Helm, service mesh, autoscaling, cloud infrastructure, and database migration automation are outside v1. They may be evaluated in a future major release without changing the v1 Linux VM focus.

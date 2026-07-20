@@ -1,0 +1,2 @@
+# Environment label required by onboard.sh.
+environment: staging

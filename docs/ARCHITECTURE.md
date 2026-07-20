@@ -1,89 +1,75 @@
 # Architecture
 
-This document describes the intended architecture for the initial template. Implementation details may evolve as the MVP is built and tested.
+The framework deploys an application artifact to one of two systemd-managed instances and directs proxy traffic to the healthy instance.
 
-## High-Level Deployment Flow
-
-```mermaid
-sequenceDiagram
-    participant Dev as Source Repository
-    participant Jenkins as Jenkins
-    participant Docker as Docker Host
-    participant NGINX as NGINX
-    participant App as Candidate App
-
-    Dev->>Jenkins: Commit or release trigger
-    Jenkins->>Jenkins: Validate inputs
-    Jenkins->>Docker: Build or pull tagged image
-    Jenkins->>Docker: Start inactive color
-    Jenkins->>App: Run health check
-    App-->>Jenkins: Healthy response
-    Jenkins->>NGINX: Switch upstream to candidate color
-    Jenkins->>Docker: Keep previous color for rollback window
-    Jenkins->>Jenkins: Record release state
+```text
+config/services.yml
+        |
+        v
+artifact -> releases/<release_id>/artifact
+                       |
+                       v
+             current symlink
+                       |
+             +---------+---------+
+             |                   |
+        blue systemd        green systemd
+         blue_port           green_port
+             \                   /
+              +--- health check-+
+                       |
+                       v
+              Apache or NGINX
+                  public_port
 ```
 
-## Jenkins Role
+## Service configuration
 
-Jenkins is planned as the release orchestrator. It should coordinate checkout, image build, tagging, deployment, validation, traffic switch, and rollback stages. Jenkins should expose enough logs and release metadata for operators to understand what changed and why.
+`config/services.yml` defines the runtime, ports, health path, deploy path, proxy, retention policy, and service commands. Scripts resolve a service by `service_name` and validate the registry before changing deployment state.
 
-Jenkins should not hide production risk behind a green build. A pipeline run is only meaningful when deployment validation, traffic switching, and rollback behavior are explicit.
+## Artifact and release directory
 
-## Docker Role
+`deploy.sh` passes an artifact file or directory to `create-release.sh`. Each deployment receives an immutable release directory:
 
-Docker provides the packaging and runtime boundary for application releases. The template will use tagged images to keep releases identifiable and repeatable. The active and inactive colors should run as separate containers or container groups with predictable names.
-
-## NGINX Role
-
-NGINX is the planned traffic boundary. It will route client traffic to the currently active color and be reloaded or reconfigured during promotion. NGINX changes must be validated carefully because incorrect upstream configuration can create immediate downtime.
-
-## Blue/Green Deployment Concept
-
-Blue/green deployment keeps two release slots available:
-
-- **Blue:** one deployment color, either active or inactive.
-- **Green:** the alternate deployment color, either active or inactive.
-
-Only one color receives production traffic at a time. The inactive color is used for candidate deployment and health validation.
-
-```mermaid
-flowchart TB
-    U[Users] --> N[NGINX]
-    N -->|active upstream| B[Blue Container]
-    G[Green Container] -. inactive candidate .-> H[Health Check]
+```text
+<deploy_path>/
+├── current -> releases/<release_id>
+├── releases/
+│   └── <release_id>/
+│       ├── artifact/
+│       └── release.json
+├── shared/
+│   └── .env
+├── logs/
+└── state/
+    ├── active_color
+    └── release-history.log
 ```
 
-## Health Check Gate
+The `current` symlink points to the release selected for start-up. Retention removes older release directories while preserving the configured number of recent releases.
 
-The health check gate prevents traffic promotion when the candidate release cannot prove basic readiness. The MVP should support a configurable health endpoint and timeout policy. A failed health check should keep traffic on the current active color.
+## Blue and green systemd units
 
-## Rollback Flow
+Onboarding generates one unit per color. Both units use the release selected by `current` and the shared environment file, but each receives a distinct `PORT` and `ACTIVE_COLOR` from its generated unit. At start-up, the unit derives `RELEASE_ID` from the resolved release directory for application metadata.
 
-Rollback should prefer restoring traffic to the last known healthy color before attempting deeper debugging.
+Only one color receives public traffic. Keeping separate processes and ports allows the inactive color to start and become healthy before promotion.
 
-```mermaid
-flowchart LR
-    A[Detect Failed Candidate or Post-Switch Issue] --> B[Identify Previous Active Color]
-    B --> C[Switch NGINX Back]
-    C --> D[Validate Restored Health]
-    D --> E[Record Rollback Event]
-```
+## Health validation and proxy switch
 
-## Environment Separation
+`deploy.sh` determines the inactive color, starts it with the new release, and checks `http://127.0.0.1:<color_port><health_path>`. A failed health check stops the flow before proxy configuration or active-color state changes.
 
-Development, staging, and production should use the same deployment mechanics with different configuration values. The template should keep environment-specific settings explicit and should avoid embedding secrets in repository files.
+After validation, `switch-traffic.sh` renders and validates the Apache or NGINX configuration, installs it, reloads the proxy, and records the new active color.
 
-Planned environment concerns include:
+## State, history, and rollback
 
-- application port
-- health-check path
-- image registry and tag
-- NGINX upstream path
-- release state location
-- deployment user and permissions
-- approval requirements
+The state directory records the active color and an append-only release history. `show-state.sh` exposes the active color, inactive color, current symlink, latest history entry, and lock status.
 
-## Future Architecture Direction
+`rollback.sh` selects the previous successful retained release unless a release ID is supplied. It points `current` to that release, starts it on the inactive color, validates health, switches traffic, and records the rollback. If start-up, health validation, or switching fails, it restores the previous `current` target. It does not delete release history or automatically stop the old color.
 
-Future releases may add deployment governance, observability, smoke tests, multi-service coordination, and canary-style validation. Larger orchestration platforms such as Kubernetes are intentionally outside the initial MVP but may influence future design notes.
+## Safety boundaries
 
+- Build artifacts are created outside privileged steps.
+- Candidate health is checked before traffic changes.
+- Managed system files are replaced only when they match or `onboard.sh --force` is explicit.
+- Deployment locks prevent concurrent release creation for one service.
+- Shared runtime configuration remains outside immutable release directories.
