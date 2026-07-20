@@ -130,6 +130,7 @@ Use the color shown as inactive by `show-state.sh`; it may be green instead of b
 | [Quick Start](docs/QUICK_START.md) | First deployment in 10–15 minutes |
 | [Configuration](docs/CONFIGURATION.md) | Configure services |
 | [Operations](docs/OPERATIONS.md) | Deploy, inspect, and rollback |
+| [Validation](docs/VALIDATION.md) | Verify successful deployments and rollbacks |
 | [Troubleshooting](docs/TROUBLESHOOTING.md) | Common failures |
 | [Architecture](docs/ARCHITECTURE.md) | Internal design |
 | [Jenkins](docs/JENKINS.md) | CI/CD integration |
