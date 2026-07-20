@@ -2,6 +2,46 @@
 
 These commands assume the repository root and the registered service `zero-downtime-demo-go`.
 
+## Passwordless sudo for deployments
+
+The framework runs system-level deployment operations non-interactively with `sudo -n`. This is required for Jenkins, GitLab CI, GitHub Actions, and other automation where password prompts cannot be answered.
+
+Do not grant the deployment user unrestricted sudo access. Allow only the commands required for its service and proxy. Create a dedicated sudoers file:
+
+```bash
+sudo visudo -f /etc/sudoers.d/zero-downtime-cicd
+```
+
+Add the following, replacing `<deployment-user>` and `<service>`:
+
+```sudoers
+<deployment-user> ALL=(root) NOPASSWD: \
+    /usr/bin/systemctl start <service>-blue, \
+    /usr/bin/systemctl stop <service>-blue, \
+    /usr/bin/systemctl restart <service>-blue, \
+    /usr/bin/systemctl status <service>-blue, \
+    /usr/bin/systemctl start <service>-green, \
+    /usr/bin/systemctl stop <service>-green, \
+    /usr/bin/systemctl restart <service>-green, \
+    /usr/bin/systemctl status <service>-green, \
+    /usr/bin/systemctl daemon-reload, \
+    /usr/sbin/apache2ctl configtest, \
+    /usr/bin/systemctl reload apache2
+```
+
+Secure and validate the file:
+
+```bash
+sudo chmod 440 /etc/sudoers.d/zero-downtime-cicd
+sudo visudo -c
+```
+
+Expected output includes:
+
+```text
+/etc/sudoers.d/zero-downtime-cicd: parsed OK
+```
+
 ## Show state and releases
 
 ```bash

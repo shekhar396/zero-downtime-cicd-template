@@ -137,13 +137,30 @@ journalctl -u zero-downtime-demo-go-green.service -n 100 --no-pager
 
 **Fix:** Set an appropriate global `ServerName` in Apache's normal configuration, run `sudo apache2ctl configtest`, and reload. Do not invent a public domain for the demo.
 
-## Non-interactive sudo fails
+## sudo: a password is required
 
 **Symptom:** Onboarding or Jenkins reports that a password is required.
 
-**Cause:** `sudo -n` is not authorized for the required commands.
+**Cause:** The deployment user does not have the required `NOPASSWD` sudo permissions.
 
-**Fix:** Ask an administrator to grant narrowly scoped sudo permissions for systemd and proxy management. Verify with `sudo -n true`. Never put a sudo password in scripts, environment files, or Jenkinsfiles.
+**Fix:**
+
+- Create the limited sudoers file described in [Passwordless sudo for deployments](OPERATIONS.md#passwordless-sudo-for-deployments).
+- Set its permissions to `0440`.
+- Validate it with `sudo visudo -c`.
+
+```bash
+sudo chmod 440 /etc/sudoers.d/zero-downtime-cicd
+sudo visudo -c
+```
+
+Then replace `<service>` and verify a permitted operation:
+
+```bash
+sudo -n systemctl restart <service>-blue
+```
+
+If this succeeds without a password prompt, deployment is correctly configured.
 
 ## Rollback fails
 

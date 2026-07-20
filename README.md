@@ -84,6 +84,8 @@ For the complete deployment and rollback walkthrough, see [Quick Start](docs/QUI
 - An application with a configurable port and HTTP health endpoint
 - Three available TCP ports: one public, one blue, and one green
 
+The deployment user requires limited passwordless sudo access for runtime operations. See [Operations](docs/OPERATIONS.md#passwordless-sudo-for-deployments).
+
 ## Important concepts
 
 | Setting | Meaning |
