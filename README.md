@@ -41,16 +41,28 @@ The proxy listens on the public port and routes requests to either the blue or g
 Run this on a Linux VM that meets the [requirements](#requirements). Onboarding installs systemd and proxy configuration, so use a normal user with passwordless non-interactive `sudo` access.
 
 ```bash
+sudo apt update
+sudo apt install -y git curl make build-essential
+sudo apt install -y apache2
+
+mkdir -p ~/workspace
+cd ~/workspace
 git clone https://github.com/shekhar396/zero-downtime-cicd-template.git
 git clone https://github.com/shekhar396/zero-downtime-demo-go.git
-cd zero-downtime-cicd-template
+
+cd zero-downtime-demo-go
+cp .env.example .env
+
+cd ../zero-downtime-cicd-template
 
 ./scripts/onboard.sh \
   --source ../zero-downtime-demo-go \
   --environment production
 ```
 
-The demo's Makefile is detected automatically. Onboarding runs its tests and build, then deploys `bin/zero-downtime-demo-go`.
+Go must also be installed at the version required by the demo application's `go.mod`, or newer; Ubuntu's default Go package may not be recent enough. The demo's Makefile is detected automatically. Onboarding runs its tests and build, then deploys `bin/zero-downtime-demo-go`.
+
+Creating `.env` manually is temporary until onboarding performs that step automatically. Onboarding is idempotent: after installing any missing prerequisite, rerun the command without cleanup.
 
 Verify the public endpoint:
 
@@ -65,7 +77,7 @@ For the complete deployment and rollback walkthrough, see [Quick Start](docs/QUI
 ## Requirements
 
 - Linux with systemd
-- Bash, Git, `curl`, and `sudo`
+- Bash, Git, `curl`, `make`, a compiler toolchain, and `sudo`
 - Passwordless non-interactive sudo for managed system files and services
 - Apache or NGINX
 - Application build tools; Go is required for the official demo

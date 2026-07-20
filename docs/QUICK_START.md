@@ -4,19 +4,24 @@ This guide onboards the official [zero-downtime-demo-go](https://github.com/shek
 
 ## 1. Prerequisites
 
-Use a Linux VM with:
+Use an Ubuntu VM with:
 
 - systemd
-- Bash, Git, `curl`, and Go
-- Apache with `a2enmod`, `a2ensite`, and `a2enconf`
 - a normal user with passwordless non-interactive `sudo`
 - ports `8080`, `18080`, and `18081` available
 
-On Debian or Ubuntu, install the common packages with:
+Install Git, curl, Make, the compiler toolchain, and Apache:
 
 ```bash
-sudo apt-get update
-sudo apt-get install -y apache2 curl git golang-go
+sudo apt update
+sudo apt install -y git curl make build-essential
+sudo apt install -y apache2
+```
+
+Go is also required. Install a supported Go version that matches the version in the demo application's `go.mod`, or a newer version. Do not assume Ubuntu's default Go package is recent enough. Follow the [official Go installation instructions](https://go.dev/doc/install), then confirm the installation:
+
+```bash
+go version
 ```
 
 Confirm non-interactive sudo is ready:
@@ -27,10 +32,19 @@ sudo -n true
 
 ## 2. Clone both repositories
 
+Keep both repositories together under `~/workspace`:
+
+```text
+~/workspace/
+├── zero-downtime-cicd-template
+└── zero-downtime-demo-go
+```
+
 ```bash
+mkdir -p ~/workspace
+cd ~/workspace
 git clone https://github.com/shekhar396/zero-downtime-cicd-template.git
 git clone https://github.com/shekhar396/zero-downtime-demo-go.git
-cd zero-downtime-cicd-template
 ```
 
 ## 3. Review the service configuration
@@ -38,7 +52,9 @@ cd zero-downtime-cicd-template
 Open `config/services.yml`. The included service uses Apache, public port `8080`, and application ports `18080` and `18081`.
 
 ```bash
+cd zero-downtime-cicd-template
 ./scripts/validate-config.sh
+cd ..
 ```
 
 See [Configuration](CONFIGURATION.md) before changing a field.
@@ -51,9 +67,22 @@ sudo ss -ltnp | grep -E ':(8080|18080|18081)[[:space:]]' || true
 
 No output means the ports are available. Resolve unexpected listeners before continuing.
 
-## 5. Run onboarding
+## 5. Create the application environment file
+
+The current implementation requires `.env` to be created from the example before onboarding:
 
 ```bash
+cd zero-downtime-demo-go
+cp .env.example .env
+```
+
+This is temporary until onboarding performs this step automatically.
+
+## 6. Run onboarding
+
+```bash
+cd ../zero-downtime-cicd-template
+
 ./scripts/onboard.sh \
   --source ../zero-downtime-demo-go \
   --environment production
@@ -79,7 +108,9 @@ It then starts the inactive color, checks its health, switches traffic, and stop
 | `--force` | Backs up and replaces differing managed files |
 | Shared `.env` exists | Preserves it |
 
-## 6. Edit the shared environment when needed
+Onboarding is idempotent. If it stops because a prerequisite is missing, install that dependency and rerun the same `onboard.sh` command. No cleanup is required.
+
+## 7. Edit the shared environment when needed
 
 The first run copies `config/app.env.example` to:
 
@@ -95,7 +126,7 @@ sudoedit /var/www/zero-downtime-demo-go/shared/.env
 
 Do not add `PORT` or `ACTIVE_COLOR`. The generated systemd units inject those values for each color.
 
-## 7. Verify the first release
+## 8. Verify the first release
 
 ```bash
 curl --fail http://127.0.0.1:8080/live
@@ -108,7 +139,7 @@ curl --fail http://127.0.0.1:8080/version
 
 Note the active color and release ID.
 
-## 8. Deploy a second release
+## 9. Deploy a second release
 
 Rebuild the demo, then deploy its binary:
 
@@ -123,7 +154,7 @@ cd ../zero-downtime-cicd-template
   ../zero-downtime-demo-go/bin/zero-downtime-demo-go
 ```
 
-## 9. Confirm the active color changed
+## 10. Confirm the active color changed
 
 ```bash
 ./scripts/show-state.sh zero-downtime-demo-go
@@ -132,7 +163,7 @@ curl --fail http://127.0.0.1:8080/health
 
 The active color should be the opposite of the color recorded after onboarding.
 
-## 10. Run rollback
+## 11. Run rollback
 
 Preview the rollback, then execute it:
 
@@ -141,7 +172,7 @@ Preview the rollback, then execute it:
 ./scripts/rollback.sh zero-downtime-demo-go
 ```
 
-## 11. Confirm rollback succeeded
+## 12. Confirm rollback succeeded
 
 ```bash
 ./scripts/show-state.sh zero-downtime-demo-go
@@ -151,3 +182,21 @@ curl --fail http://127.0.0.1:8080/version
 ```
 
 The active color should have changed again, and the public endpoint should report the retained release selected by rollback. The previously active color remains running after `deploy.sh` and `rollback.sh`; see [Operations](OPERATIONS.md) before stopping it.
+
+## Common First-Time Issues
+
+### Go is not installed
+
+```text
+[onboard] FAILURE Go is required because the source contains go.mod
+```
+
+Install a supported Go version matching the application's `go.mod`, or newer, confirm it with `go version`, and rerun onboarding.
+
+### Make is not installed
+
+```text
+bash: make: command not found
+```
+
+Install it with `sudo apt install -y make build-essential`, then rerun onboarding. No cleanup is required after either error.
